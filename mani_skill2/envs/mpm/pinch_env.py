@@ -145,10 +145,6 @@ class PinchEnv(MPMBaseEnv):
         self.agent.robot.set_pose(sapien.Pose([-0.56, 0, 0]))
 
     def step(self, *args, **kwargs):
-        print(f"type={self.mpm_model.struct.particle_type}")
-        print(f"mu_lam_ys={self.mpm_model.struct.particle_mu_lam_ys}")
-        print(f"friction_cohesion={self.mpm_model.struct.particle_friction_cohesion}")
-
         self._chamfer_dist = None
         return super().step(*args, **kwargs)
 
