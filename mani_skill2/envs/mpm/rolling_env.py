@@ -39,20 +39,36 @@ class RollingEnv(MPMBaseEnv):
     def reset(self, *args, seed=None, **kwargs):
         return super().reset(*args, seed=seed, **kwargs)
 
+    def _setup_mpm(self):
+        self.model_builder = MPMModelBuilder()
+        self.model_builder.set_mpm_domain(domain_size=[0.5, 0.5, 0.5], grid_length=0.02)
+        self.model_builder.reserve_mpm_particles(count=self.max_particles)
+
+        self._setup_mpm_bodies()
+
+        self.mpm_simulator = MPMSimulator(device="cuda")
+        self.mpm_model = self.model_builder.finalize(device="cuda")
+        self.mpm_model.gravity = np.array((0.0, 0.0, -9.81), dtype=np.float32)
+        self.mpm_model.struct.ground_normal = wp.vec3(0.0, 0.0, 1.0)
+        self.mpm_model.struct.particle_radius = 0.005
+        self.mpm_states = [
+            self.mpm_model.state() for _ in range(self._mpm_step_per_sapien_step + 1)
+        ]
+
     def _initialize_mpm(self):
         self.model_builder.clear_particles()
 
         # I might need to tune the Young's modulus later.
-        E = 1E5
-        nu = 0.3
+        E = 2E5
+        nu = 0.1
         mu, lam = E / (2 * (1 + nu)), E * nu / ((1 + nu) * (1 - 2 * nu))
-        ys = 2000.
+        ys = 1e3
         # 0 for von-mises. In Pinch-v0 it also uses type=0
         type = 0
         friction_angle = 0.5
         cohesion = 0.05
+        dx = 0.0025
         # An arbitrary initial heightmap.
-        dx = 0.002
         height_map = generate_circular_cone_heightmap(radius=0.1, height=0.04, dx=dx)
 
         count = self.model_builder.add_mpm_from_height_map(
@@ -60,7 +76,7 @@ class RollingEnv(MPMBaseEnv):
             vel=(0., 0., 0.),
             dx=dx,
             height_map=height_map,
-            density=1.2E3,
+            density=1.4E3,
             mu_lambda_ys=(mu, lam, ys),
             friction_cohesion=(friction_angle, cohesion, 0.),
             type=type,
@@ -72,15 +88,15 @@ class RollingEnv(MPMBaseEnv):
         # I copied these values from pinch_env.py
         self.mpm_model.struct.static_ke = 100.0
         self.mpm_model.struct.static_kd = 0.5
-        self.mpm_model.struct.static_mu = 0.9
+        self.mpm_model.struct.static_mu = 1.0
         self.mpm_model.struct.static_ka = 0.0
 
-        self.mpm_model.struct.body_ke = 100.0
+        self.mpm_model.struct.body_ke = 1000.0
         self.mpm_model.struct.body_kd = 0.2
         self.mpm_model.struct.body_mu = 0.5
         self.mpm_model.struct.body_ka = 0.0
 
-        self.mpm_model.adaptive_grid = False
+        self.mpm_model.adaptive_grid = True
 
         self.mpm_model.grid_contact = False
         self.mpm_model.particle_contact = True
