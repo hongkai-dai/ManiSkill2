@@ -5,8 +5,13 @@ from mani_skill2.envs.sapien_env import BaseEnv
 from mani_skill2.utils.visualization.cv2_utils import OpenCVViewer
 from mani_skill2.envs.mpm.rolling_env import RollingEnv
 
+
 def main():
-    env: BaseEnv = gym.make("Rolling-v0", control_mode="pd_ee_delta_pose")
+    #env: BaseEnv = gym.make("Rolling-v0", control_mode="pd_ee_delta_pose")
+    sim_freq = 500
+    mpm_freq = 2000
+    env = RollingEnv(sim_freq=sim_freq, mpm_freq=mpm_freq)
+    control_dt = 1 / env.control_freq
 
     obs = env.reset()
     after_reset = True
@@ -20,10 +25,10 @@ def main():
             if sapien_viewer.window.key_down("0"):
                 break
 
-    has_gripper = "gripper" in env.agent.controller.configs
-    gripper_action = 1
-    EE_ACTION = 0.1
+    EE_ACTION = 0.01
 
+    sim_step = 0
+    sim_time = 0.
     while True:
         env.render(mode="human")
 
@@ -37,30 +42,30 @@ def main():
 
         key = opencv_viewer.imshow(render_frame)
 
-        ee_action = np.zeros([6])
+        action = env.agent.robot.get_pose().p
         # Position
         if key == "i":  # +x
-            ee_action[0] = EE_ACTION
+            action[0] += EE_ACTION
         elif key == "k":  # -x
-            ee_action[0] = -EE_ACTION
+            action[0] += -EE_ACTION
         elif key == "j":  # +y
-            ee_action[1] = EE_ACTION
+            action[1] += EE_ACTION
         elif key == "l":  # -y
-            ee_action[1] = -EE_ACTION
+            action[1] += -EE_ACTION
         elif key == "u":  # +z
-            ee_action[2] = EE_ACTION
+            action[2] += EE_ACTION
         elif key == "o":  # -z
-            ee_action[2] = -EE_ACTION
+            action[2] += -EE_ACTION
 
         if key == "q":
             break
+        env.step_action(sim_time, action)
+        sim_step += 1
+        sim_time += control_dt
+        #obs = env.get_obs()
+        #info = env.get_info(obs=obs)
+        #done = env.get_done(obs=obs, info=info)
 
-    gripper_action = 1  # open gripper
-    action = np.hstack([ee_action, gripper_action])
-    env.step_action(action)
-    #obs = env.get_obs()
-    #info = env.get_info(obs=obs)
-    #done = env.get_done(obs=obs, info=info)
 
 if __name__ == "__main__":
     main()
