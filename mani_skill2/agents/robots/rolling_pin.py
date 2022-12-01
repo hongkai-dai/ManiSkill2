@@ -6,7 +6,6 @@ import sapien.core as sapien
 from gym import spaces
 
 from mani_skill2.agents.base_agent import BaseAgent
-from mani_skill2.agents.configs.rolling_pin import defaults
 from ..camera import MountedCameraConfig, get_camera_images, get_camera_pcd
 
 

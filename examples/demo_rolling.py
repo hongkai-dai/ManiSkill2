@@ -1,5 +1,6 @@
 import gym
 import numpy as np
+import transforms3d
 
 from mani_skill2.envs.sapien_env import BaseEnv
 from mani_skill2.utils.visualization.cv2_utils import OpenCVViewer
@@ -42,24 +43,60 @@ def main():
 
         key = opencv_viewer.imshow(render_frame)
 
-        action = env.agent.robot.get_pose().p
+        pose = env.agent.robot.get_pose()
+        position = pose.p
+        quaternion = pose.q
+        R_current = transforms3d.quaternions.quat2mat(quaternion)
+        delta_theta = 5. / 180 * np.pi
+        print(f"current_pose={pose}")
         # Position
-        if key == "i":  # +x
-            action[0] += EE_ACTION
-        elif key == "k":  # -x
-            action[0] += -EE_ACTION
-        elif key == "j":  # +y
-            action[1] += EE_ACTION
-        elif key == "l":  # -y
-            action[1] += -EE_ACTION
+        if key == "i":  # move forward
+            position += R_current @ np.array([0, EE_ACTION, 0])
+        elif key == "k":  # move backward
+            position -= R_current @ np.array([0, EE_ACTION, 0])
+        elif key == "j":  # side step
+            position += R_current @ np.array([EE_ACTION, 0, 0])
+        elif key == "l":  # side step
+            position -= R_current @ np.array([EE_ACTION, 0, 0])
         elif key == "u":  # +z
-            action[2] += EE_ACTION
+            position[2] += EE_ACTION
         elif key == "o":  # -z
-            action[2] += -EE_ACTION
+            position[2] += -EE_ACTION
+        elif key == "y":  # + yaw
+            # yaw in the body frame.
+            quaternion = transforms3d.quaternions.qmult(
+                quaternion,
+                np.array(
+                    [np.cos(delta_theta / 2), 0, 0,
+                     np.sin(delta_theta / 2)]))
+        elif key == "h":  # - yaw
+            # yaw in the body frame
+            quaternion = transforms3d.quaternions.qmult(
+                quaternion,
+                np.array(
+                    [np.cos(-delta_theta / 2), 0, 0,
+                     np.sin(-delta_theta / 2)]))
+        elif key == "p":  # + pitch
+            # pitch in the body frame.
+            quaternion = transforms3d.quaternions.qmult(
+                quaternion,
+                np.array(
+                    [np.cos(delta_theta / 2), 0,
+                     np.sin(delta_theta / 2), 0]))
+        elif key == ";":  # - pitch
+            # pitch in the body frame.
+            quaternion = transforms3d.quaternions.qmult(
+                quaternion,
+                np.array(
+                    [np.cos(-delta_theta / 2), 0,
+                     np.sin(-delta_theta / 2), 0]))
 
         if key == "q":
             break
-        env.step_action(sim_time, action)
+        pose.set_p(position)
+        pose.set_q(quaternion)
+        print(f"desired pose={pose}")
+        env.step_action_one_way_coupling(pose)
         sim_step += 1
         sim_time += control_dt
         #obs = env.get_obs()

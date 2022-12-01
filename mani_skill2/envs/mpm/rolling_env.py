@@ -4,10 +4,10 @@ import h5py
 import numpy as np
 import sapien.core as sapien
 from transforms3d.euler import euler2quat
+import transforms3d
 
 from mani_skill2 import ASSET_DIR
 from mani_skill2.agents.configs.panda.variants import PandaPinchConfig
-from mani_skill2.agents.configs.rolling_pin.defaults import RollingPinDefaultConfig
 
 from mani_skill2.agents.robots.panda import Panda
 from mani_skill2.agents.robots.rolling_pin import RollingPin
@@ -127,7 +127,10 @@ class RollingEnv(MPMBaseEnv):
         )
 
     def _initialize_agent(self):
-        qpos = np.array([0, 0., 0.1, np.sqrt(2) / 2., 0., 0., np.sqrt(2) / 2])
+        # The rolling pin capsule axis is along x-axis.
+        # The position vector is
+        # [p_x, p_y, p_z, quat_x, quat_y, quat_z, quat_w]
+        qpos = np.array([0, 0., 0.1, 0, 0, 0, 1])
 
         self.agent.reset(qpos)
 
@@ -198,5 +201,59 @@ class RollingEnv(MPMBaseEnv):
                         actor.add_force_torque(tf[3:], tf[:3])
 
             self._scene.step()
+            self.mpm_states = [self.mpm_states[-1]
+                               ] + self.mpm_states[:-1]  # rotate states
+
+    def step_action_one_way_coupling(self, next_pin_pose: sapien.Pose):
+        """
+        Only consider the one-way coupling, namely the rolling pin as a
+        boundary condition for the dough, but ignore the reaction force applied
+        from the dough to the rolling pin. Instead we assume that the rolling
+        pin just follows a linearly interpolated trajectory from the current
+        pose to `pin_next_pose`.
+        """
+        start_pose = self.agent.robot.get_pose()
+        # Compute the delta between start_pose and next_pin_pose
+        delta_position = (next_pin_pose.p -
+                          start_pose.p) / self._sim_steps_per_control
+        R_WB2 = transforms3d.quaternions.quat2mat(next_pin_pose.q)
+        R_WB1 = transforms3d.quaternions.quat2mat(start_pose.q)
+        axis, angle = transforms3d.axangles.mat2axangle(R_WB1.T @ R_WB2)
+        delta_angle = angle / self._sim_steps_per_control
+
+        for sim_step in range(self._sim_steps_per_control):
+
+            self.sync_actors()
+            for mpm_step in range(self._mpm_step_per_sapien_step):
+                self.mpm_simulator.simulate(
+                    self.mpm_model,
+                    self.mpm_states[mpm_step],
+                    self.mpm_states[mpm_step + 1],
+                    self._mpm_dt,
+                )
+
+            self.agent.before_simulation_step()
+
+            # apply wrench
+            tfs = [s.ext_body_f.numpy() for s in self.mpm_states[:-1]]
+            tfs = np.mean(tfs, 0)
+
+            if np.isnan(tfs).any():
+                self.sim_crashed = True
+                return
+
+            # Compute the wrench from applied by the controller.
+            if self.mpm_states[-1].struct.error.numpy()[0] == 1:
+                self.sim_crashed = True
+                return
+
+            self._scene.step()
+            R_sim = R_WB1 @ transforms3d.axangles.axangle2mat(
+                axis, delta_angle * (sim_step + 1))
+            self.agent.robot.set_pose(
+                sapien.Pose(p=start_pose.p + delta_position * (sim_step + 1),
+                            q=transforms3d.quaternions.mat2quat(R_sim)))
+            self.agent.robot.set_velocity(np.zeros(3))
+            self.agent.robot.set_angular_velocity(np.zeros(3))
             self.mpm_states = [self.mpm_states[-1]
                                ] + self.mpm_states[:-1]  # rotate states
