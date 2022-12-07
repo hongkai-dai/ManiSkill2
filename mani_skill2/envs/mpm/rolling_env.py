@@ -1,3 +1,6 @@
+import typing
+from dataclasses import dataclass
+
 import numpy as np
 import sapien.core as sapien
 from transforms3d.euler import euler2quat
@@ -10,18 +13,17 @@ from mani_skill2.envs.mpm.base_env import MPMBaseEnv, MPMModelBuilder, MPMSimula
 from mani_skill2.utils.registration import register_gym_env
 
 
-def generate_circular_cone_heightmap(radius: float, height: float,
-                                     dx: float) -> np.ndarray:
-    half_width = int(radius / dx)
-    width = 2 * half_width + 1
-    height_map = np.zeros((width, width), dtype=np.float32)
-    X, Y = np.meshgrid(np.linspace(-half_width * dx, half_width * dx, width),
-                       np.linspace(-half_width * dx, half_width * dx, width))
-    height_map = height - np.sqrt(X**2 + Y**2) / radius * height
-    height_map = np.clip(height_map,
-                         a_min=np.zeros_like(height_map),
-                         a_max=None)
-    return height_map
+@dataclass
+class Heightmap:
+    """
+    Records the grid coordinate in the horizontal plane and the height at each
+    grid vertex.
+
+    height[i, j] is the height at the horizontal coordinate (grid_w[i], grid_h[j])
+    """
+    grid_h: np.ndarray
+    grid_w: np.ndarray
+    height: np.ndarray
 
 
 @register_gym_env("Rolling-v0", max_episode_steps=10000)
@@ -56,6 +58,11 @@ class RollingEnv(MPMBaseEnv):
             for _ in range(self._mpm_step_per_sapien_step + 1)
         ]
 
+    def set_initial_height_map(self, initial_height_map: np.ndarray,
+                               dx: float):
+        self._initial_height_map = initial_height_map
+        self._height_map_dx = dx
+
     def _initialize_mpm(self):
         self.model_builder.clear_particles()
 
@@ -70,16 +77,16 @@ class RollingEnv(MPMBaseEnv):
         type = 0
         friction_angle = 0.5
         cohesion = 0.05
-        dx = 0.0025
-        # An arbitrary initial heightmap.
-        height_map = generate_circular_cone_heightmap(radius=0.1,
-                                                      height=0.06,
-                                                      dx=dx)
-
+        if hasattr(self, "_initial_height_map"):
+            height_map = self._initial_height_map
+            height_map_dx = self._height_map_dx
+        else:
+            height_map = np.ones((10, 10)) * 0.01
+            height_map_dx = 0.0025
         count = self.model_builder.add_mpm_from_height_map(
             pos=(0., 0., 0.),
             vel=(0., 0., 0.),
-            dx=dx,
+            dx=height_map_dx,
             height_map=height_map,
             density=1.4E3,
             mu_lambda_ys=(mu, lam, ys),
@@ -250,3 +257,41 @@ class RollingEnv(MPMBaseEnv):
             self.agent.robot.set_angular_velocity(np.zeros(3))
             self.mpm_states = [self.mpm_states[-1]
                                ] + self.mpm_states[:-1]  # rotate states
+
+    def calc_heightmap(self, dx: float,
+                       grid_size: typing.Tuple[int]) -> Heightmap:
+        """
+        Compute the heightmap of the dough in the planar box region.
+        This box region is the grid with square grid cell (with length dx)
+        -(grid_size[1] - 1) * dx / 2 <= p_x <= grid_size[1] * dx / 2
+        -(grid_size[0] - 1) * dx / 2 <= p_y <= grid_size[0] * dx / 2
+        The height map is reported on the grid with the given grid_size
+
+        Args:
+          dx: The length of each cell in the grid.
+          grid_size: A size-2 list containing the (grid_size_h, grid_size_w)
+        """
+        grid_size_h = grid_size[0]
+        grid_size_w = grid_size[1]
+
+        grid_h = (np.arange(0, grid_size_h) - (grid_size_h - 1) / 2) * dx
+        grid_w = (np.arange(0, grid_size_w) - (grid_size_w - 1) / 2) * dx
+        height = np.zeros(grid_size)
+
+        particle_q = self.copy_array_to_numpy(
+            self.mpm_states[0].struct.particle_q,
+            self.mpm_model.struct.n_particles)
+        for i in range(particle_q.shape[0]):
+            h_index = round(particle_q[i, 1] / dx + (grid_size_h - 1) / 2)
+            w_index = round(particle_q[i, 0] / dx + (grid_size_w - 1) / 2)
+            if h_index < 0:
+                h_index = 0
+            if h_index > grid_size_h - 1:
+                h_index = grid_size_h
+            if w_index < 0:
+                w_index = 0
+            if w_index > grid_size_w - 1:
+                w_index = grid_size_w - 1
+            if particle_q[i, 2] > height[h_index, w_index]:
+                height[h_index, w_index] = particle_q[i, 2]
+        return Heightmap(grid_h=grid_h, grid_w=grid_w, height=height)
