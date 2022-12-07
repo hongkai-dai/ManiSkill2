@@ -24,6 +24,26 @@ class TestRollingEnv(unittest.TestCase):
         np.testing.assert_equal(dut.agent.robot.get_pose().q,
                                 np.array([1, 0, 0, 0.]))
 
+    def test_calc_heightmap(self):
+        dut = rolling_env.RollingEnv(sim_freq=100, mpm_freq=2000)
+        height = np.array([[0.02, 0.04, 0.05, 0.03], [0.02, 0.01, 0.03, 0.04],
+                           [0.01, 0.03, 0.02, 0.05]])
+        dx = 0.0025
+        dut.set_initial_height_map(height, dx)
+        dut.reset()
+
+        height_map = dut.calc_heightmap(dx, height.shape)
+        # MPMBuilder.add_mpm_from_height_map actually only set the height to `height` - dx, instead of the desired height.
+        np.testing.assert_allclose(height - dx, height_map.height)
+        self.assertEqual(height_map.grid_h.shape, (3, ))
+        self.assertEqual(height_map.grid_w.shape, (4, ))
+        np.testing.assert_allclose(
+            height_map.grid_h[1:] - height_map.grid_h[:-1], dx * np.ones(
+                (2, )))
+        np.testing.assert_allclose(
+            height_map.grid_w[1:] - height_map.grid_w[:-1], dx * np.ones(
+                (3, )))
+
 
 if __name__ == "__main__":
     unittest.main()
