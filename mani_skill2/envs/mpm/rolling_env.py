@@ -1,5 +1,6 @@
-import typing
 from dataclasses import dataclass
+from enum import Enum
+import typing
 
 import numpy as np
 import sapien.core as sapien
@@ -11,6 +12,11 @@ from mani_skill2.agents.configs.panda.variants import PandaPinchConfig
 from mani_skill2.agents.robots.rolling_pin import RollingPin
 from mani_skill2.envs.mpm.base_env import MPMBaseEnv, MPMModelBuilder, MPMSimulator
 from mani_skill2.utils.registration import register_gym_env
+
+
+class ActionOption(Enum):
+    RELATIVE = 1
+    ABSOLUTE = 2
 
 
 @dataclass
@@ -37,6 +43,7 @@ class RollingEnv(MPMBaseEnv):
     ) -> None:
         self._height_map_dx = 0.0025
         self._initial_height_map = np.ones((10, 10)) * 0.01
+        self.action_option = ActionOption.RELATIVE
         super().__init__(*args, **kwargs)
 
     def reset(self, *args, seed=None, **kwargs):
@@ -132,9 +139,6 @@ class RollingEnv(MPMBaseEnv):
         qpos = np.array([0, 0., 0.1, 0, 0, 0, 1])
 
         self.agent.reset(qpos)
-
-    def step(self, *args, **kwargs):
-        return super().step(*args, **kwargs)
 
     def _setup_cameras(self):
         # Camera only for rendering, not included in `_cameras`
@@ -293,3 +297,130 @@ class RollingEnv(MPMBaseEnv):
             if particle_q[i, 2] > height[h_index, w_index]:
                 height[h_index, w_index] = particle_q[i, 2]
         return Heightmap(grid_h=grid_h, grid_w=grid_w, height=height)
+
+    def is_pin_above_table(self, q: typing.Union[np.ndarray,
+                                                 sapien.Pose]) -> bool:
+        if isinstance(q, np.ndarray):
+            p_Wpin = q[:3]
+            quat = np.array([q[6], q[0], q[1], q[2]])
+        elif isinstance(q, sapien.Pose):
+            p_Wpin = q.p
+            quat = q.q
+        R_Wpin = transforms3d.quaternions.quat2mat(quat)
+        if (p_Wpin + R_Wpin @ np.array([self.agent.capsule_half_length, 0, 0])
+            )[2] < self.agent.capsule_radius:
+            return False
+        if (p_Wpin + R_Wpin @ np.array([-self.agent.capsule_half_length, 0, 0])
+            )[2] < self.agent.capsule_radius:
+            return False
+        return True
+
+    def is_pin_y_horizontal(self, R_Wpin: np.ndarray, tol: float = 0.) -> bool:
+        """
+        Return true if the pin y axis is parallel to the horizontal surface (namely the pin y axis is orthogonal to world z axis)
+        """
+        return (np.abs(R_Wpin[2, 1]) <= tol)
+
+    def _step_to_pose(self, duration: float, p_Wpin_final: np.ndarray,
+                      R_Wpin_final: np.ndarray) -> None:
+        """
+        Step to a commanded rolling pin pose from the current state within a given duration.
+        """
+        # Compute the number of control steps
+        num_control_steps = int(duration * self._control_freq)
+
+        pose_init = self.agent.robot.get_pose()
+        p_Wpin_init = pose_init.p
+        R_Wpin_init = transforms3d.quaternions.quat2mat(pose_init.q)
+
+        # Now linearly interpolate between pin start pose and final pose, and
+        # step the rolling pin controller to follow this interpolated
+        # trajectory.
+        delta_pos_step = (p_Wpin_final - p_Wpin_init) / num_control_steps
+        axis, angle = transforms3d.axangles.mat2axangle(
+            R_Wpin_init.T @ R_Wpin_final)
+        delta_angle_step = angle / num_control_steps
+        R_step = transforms3d.axangles.axangle2mat(axis, delta_angle_step)
+        quat_step = transforms3d.quaternions.mat2quat(R_step)
+
+        p_Wpin_next = p_Wpin_init.copy()
+        quat_Wpin_next = transforms3d.quaternions.mat2quat(R_Wpin_init)
+        for _ in range(num_control_steps):
+            p_Wpin_next += delta_pos_step
+            quat_Wpin_next = transforms3d.quaternions.qmult(
+                quat_Wpin_next, quat_step)
+            self.step_action_one_way_coupling(
+                sapien.Pose(p=p_Wpin_next, q=quat_Wpin_next))
+
+    def step_relative(self, action: np.ndarray) -> None:
+        """
+        The action is
+        (duration, rolling_distance, delta_height, delta_yaw, delta_pitch)
+        where duration is a positive scalar.
+        rolling_distance is a scalar measuring the distance travelled along the
+        rolling direction by the rolling pin center.
+        delta_height is the change on the z height of the rolling pin.
+        delta_yaw is the change of the yaw angle of the rolling pin.
+        delta_pitch is the change of the pitch angle of the rolling pin (the
+        rolling pin capsule axis is its x axis.)
+
+        The robot will follow a linearly-interpolated trajectory from the
+        starting pose to the final pose.
+        """
+        duration, rolling_distance, delta_height, delta_yaw, delta_pitch = action
+
+        X_Wpin_init = self.agent.robot.get_pose()
+        p_Wpin_init = X_Wpin_init.p
+        R_Wpin_init = transforms3d.quaternions.quat2mat(X_Wpin_init.q)
+        if not self.is_pin_y_horizontal(R_Wpin_init, 1E-7):
+            raise Exception(
+                "RollingPinEnv.step(): pin y axis should be perpendicular to world z axis."
+            )
+
+        # Now compute the final pose.
+        # First acount for rolling for the given distance with the turning angle.
+        # We assume the path of the rolling pin center, projected onto the
+        # table horizontal plane, is an arc, with arc radius determined by the
+        # delta yaw angle.
+        if delta_yaw == 0.:
+            # No turning, move a straight line along pin's y axis.
+            p_Wpin_final = p_Wpin_init + R_Wpin_init @ np.array(
+                [0, rolling_distance, 0])
+        else:
+            # The angle corresponding with this arc is delta_yaw, with arc length rolling_distance
+            arc_radius = rolling_distance / delta_yaw
+            p_Wpin_final = p_Wpin_init + R_Wpin_init @ np.array([
+                arc_radius *
+                (1 - np.cos(delta_yaw)), arc_radius * np.sin(delta_yaw), 0
+            ])
+        # Now account for delta_height
+        p_Wpin_final[2] += delta_height
+
+        # Now account for orientation change.
+        R_Wpin_final = R_Wpin_init @ transforms3d.euler.euler2mat(
+            0, delta_pitch, delta_yaw)
+        if (not self.is_pin_above_table(
+                sapien.Pose(
+                    p=p_Wpin_final,
+                    q=transforms3d.quaternions.mat2quat(R_Wpin_final)))):
+            raise Exception(
+                "RollingPinEnv.step(): the rolling pin is not above the table in the commanded final pose."
+            )
+
+        self._step_to_pose(duration, p_Wpin_final, R_Wpin_final)
+
+    def step_absolute(self, action: np.ndarray) -> None:
+        """
+        Step from the current pose to a commanded pose.
+        The action is [duration, command_pin_position, command_pin_quaternion]
+        """
+        self._step_to_pose(duration=action[0],
+                           p_Wpin_final=action[1:4],
+                           R_Wpin_final=transforms3d.quaternions.quat2mat(
+                               action[4:8]))
+
+    def step(self, action: np.ndarray) -> None:
+        if self.action_option == ActionOption.RELATIVE:
+            self.step_relative(action)
+        elif self.action_option == ActionOption.ABSOLUTE:
+            self.step_absolute(action)
