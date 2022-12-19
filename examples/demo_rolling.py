@@ -4,20 +4,7 @@ import typing
 
 from mani_skill2.envs.mpm.rolling_env import RollingEnv
 from mani_skill2.utils.visualization.cv2_utils import OpenCVViewer
-
-
-def generate_circular_cone_heightmap(radius: float, height: float,
-                                     dx: float) -> np.ndarray:
-    half_width = int(radius / dx)
-    width = 2 * half_width + 1
-    height_map = np.zeros((width, width), dtype=np.float32)
-    X, Y = np.meshgrid(np.linspace(-half_width * dx, half_width * dx, width),
-                       np.linspace(-half_width * dx, half_width * dx, width))
-    height_map = height - np.sqrt(X**2 + Y**2) / radius * height
-    height_map = np.clip(height_map,
-                         a_min=np.zeros_like(height_map),
-                         a_max=None)
-    return height_map
+import examples.dough_model_learning.data_generation as data_generation
 
 
 def key_to_pose(key: str, position: np.ndarray, quaternion: np.ndarray,
@@ -74,9 +61,9 @@ def main():
 
     # An arbitrary initial heightmap.
     dx = 0.0025
-    height_map = generate_circular_cone_heightmap(radius=0.1,
-                                                  height=0.06,
-                                                  dx=dx)
+    height_map = data_generation.generate_circular_cone_heightmap(radius=0.1,
+                                                                  height=0.06,
+                                                                  dx=dx)
     env.set_initial_height_map(height_map, dx)
 
     obs = env.reset()
