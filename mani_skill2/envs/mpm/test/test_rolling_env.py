@@ -133,6 +133,38 @@ class TestRollingEnv(unittest.TestCase):
                 ([duration], start_sweeping_pose,
                  [rolling_distance, delta_height, delta_yaw, delta_pitch])))
 
+    def test_is_action_valid(self):
+        dut = rolling_env.RollingEnv(sim_freq=500, mpm_freq=2000)
+        dut.action_option = rolling_env.ActionOption.LIFTAFTERROLL
+        self.assertTrue(
+            dut.is_action_valid(
+                np.array([0.1, 0, 0, 0.05, 0.2, 0.01, 0.1, 0.01, 0.1, 0.01])))
+        # duration is negative.
+        self.assertFalse(
+            dut.is_action_valid(
+                np.array([-0.1, 0, 0, 0.05, 0, 0, 0.1, 0, 0, 0])))
+        # The pin is below the table at the start pose.
+        self.assertFalse(
+            dut.is_action_valid(
+                np.array([0.5, 0, 0, 0.01, 0, 0.2, 0.5, 0.4, 0, -0.2])))
+        # The pin is below the table at the end pose.
+        self.assertFalse(
+            dut.is_action_valid(
+                np.array([0.5, 0, 0, 0.05, 0, 0, 0.1, -0.03, 0, 0.2])))
+
+    def test_dough_center(self):
+        dut = rolling_env.RollingEnv(sim_freq=500, mpm_freq=2000)
+        height = 0.5
+        dx = 0.1
+        dut.set_initial_height_map(
+            np.array([[0, 0, 0], [0, height, height], [0, height, height]]),
+            dx)
+        dut.reset()
+        # Currently when we initialize the height map, the top cell
+        # (with size dx * dx * dx) is always not filled. I should fix this bug.
+        np.testing.assert_allclose(
+            dut.dough_center(), np.array([dx / 2, dx / 2, (height - dx) / 2]))
+
 
 if __name__ == "__main__":
     unittest.main()
