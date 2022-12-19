@@ -115,6 +115,24 @@ class TestRollingEnv(unittest.TestCase):
             transforms3d.quaternions.quat2mat(pose_final.q),
             transforms3d.quaternions.quat2mat(q_Wpin_command))
 
+    def test_step_with_lift(self):
+        dut = rolling_env.RollingEnv(sim_freq=500, mpm_freq=2000)
+        dut.agent.robot.set_pose(
+            sapien.Pose(p=np.array([0, 0, 0.1]),
+                        q=np.array([np.cos(0.1), 0, 0,
+                                    np.sin(0.1)])))
+
+        duration = 2
+        start_sweeping_pose = np.array([0, 0, 0.04, 0.01, 0.0])
+        rolling_distance = 0.2
+        delta_height = 0.01
+        delta_yaw = 0.05
+        delta_pitch = 0.1
+        dut.step_with_lift(
+            np.concatenate(
+                ([duration], start_sweeping_pose,
+                 [rolling_distance, delta_height, delta_yaw, delta_pitch])))
+
 
 if __name__ == "__main__":
     unittest.main()

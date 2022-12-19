@@ -17,6 +17,7 @@ from mani_skill2.utils.registration import register_gym_env
 class ActionOption(Enum):
     RELATIVE = 1
     ABSOLUTE = 2
+    LIFTAFTERROLL = 3  # Lift the rolling pin after every rolling motion.
 
 
 @dataclass
@@ -43,7 +44,7 @@ class RollingEnv(MPMBaseEnv):
     ) -> None:
         self._height_map_dx = 0.0025
         self._initial_height_map = np.ones((10, 10)) * 0.01
-        self.action_option = ActionOption.RELATIVE
+        self.action_option = ActionOption.LIFTAFTERROLL
         super().__init__(*args, **kwargs)
 
     def reset(self, *args, seed=None, **kwargs):
@@ -419,8 +420,54 @@ class RollingEnv(MPMBaseEnv):
                            R_Wpin_final=transforms3d.quaternions.quat2mat(
                                action[4:8]))
 
+    def step_with_lift(self, action: np.ndarray) -> None:
+        """
+        Descend the rolling pin to a desired pose, sweep the rolling pin, and then lift the rolling pin.
+        The action is 
+        [duration, start_sweeping_pose, rolling distance, delta_height, delta_yaw, delta_pitch]
+        start_sweeing_pose is [pos_x, pos_y, pos_z, yaw, pitch]
+        """
+        if action.shape != (10, ):
+            raise Exception(
+                f"step_with_lift() expects action.shape=(10,), got {action.shape}"
+            )
+
+        duration, start_sweeping_pose, rolling_distance, delta_height, delta_yaw, delta_pitch = np.split(
+            action, [1, 6, 7, 8, 9])
+        start_sweeping_yaw = start_sweeping_pose[3]
+        start_sweeping_pitch = start_sweeping_pose[4]
+
+        # First move to a position right above start_sweeping_pose
+        descend_height = 0.05
+        R_Wpin_start_sweeping = transforms3d.euler.euler2mat(
+            0, start_sweeping_pitch, start_sweeping_yaw)
+        self._step_to_pose(duration=1,
+                           p_Wpin_final=np.array([
+                               start_sweeping_pose[0], start_sweeping_pose[1],
+                               start_sweeping_pose[2] + descend_height
+                           ]),
+                           R_Wpin_final=R_Wpin_start_sweeping)
+        # Descend to start_sweeping_pose.
+        self._step_to_pose(duration=0.5,
+                           p_Wpin_final=start_sweeping_pose[:3],
+                           R_Wpin_final=R_Wpin_start_sweeping)
+
+        # Now sweep the rolling pin
+        self.step_relative(
+            np.concatenate((duration, rolling_distance, delta_height,
+                            delta_yaw, delta_pitch)))
+
+        # Now lift up the rolling pin from the current pose.
+        X_Wpin = self.agent.robot.get_pose()
+        self._step_to_pose(
+            duration=0.5,
+            p_Wpin_final=X_Wpin.p + np.array([0, 0, descend_height]),
+            R_Wpin_final=transforms3d.quaternions.quat2mat(X_Wpin.q))
+
     def step(self, action: np.ndarray) -> None:
         if self.action_option == ActionOption.RELATIVE:
             self.step_relative(action)
         elif self.action_option == ActionOption.ABSOLUTE:
             self.step_absolute(action)
+        elif self.action_option == ActionOption.LIFTAFTERROLL:
+            self.step_with_lift(action)
