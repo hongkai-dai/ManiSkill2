@@ -353,26 +353,15 @@ class RollingEnv(MPMBaseEnv):
             self.step_action_one_way_coupling(
                 sapien.Pose(p=p_Wpin_next, q=quat_Wpin_next))
 
-    def step_relative(self, action: np.ndarray) -> None:
+    def _compute_step_relative_pose(self, start_pose: sapien.Pose,
+                                    rolling_distance: float,
+                                    delta_height: float, delta_yaw: float,
+                                    delta_pitch: float) -> sapien.Pose:
         """
-        The action is
-        (duration, rolling_distance, delta_height, delta_yaw, delta_pitch)
-        where duration is a positive scalar.
-        rolling_distance is a scalar measuring the distance travelled along the
-        rolling direction by the rolling pin center.
-        delta_height is the change on the z height of the rolling pin.
-        delta_yaw is the change of the yaw angle of the rolling pin.
-        delta_pitch is the change of the pitch angle of the rolling pin (the
-        rolling pin capsule axis is its x axis.)
-
-        The robot will follow a linearly-interpolated trajectory from the
-        starting pose to the final pose.
+        Compute the final pose if we sweep the rolling pin from start_pose through certain motion.
         """
-        duration, rolling_distance, delta_height, delta_yaw, delta_pitch = action
-
-        X_Wpin_init = self.agent.robot.get_pose()
-        p_Wpin_init = X_Wpin_init.p
-        R_Wpin_init = transforms3d.quaternions.quat2mat(X_Wpin_init.q)
+        p_Wpin_init = start_pose.p
+        R_Wpin_init = transforms3d.quaternions.quat2mat(start_pose.q)
         if not self.is_pin_y_horizontal(R_Wpin_init, 1E-7):
             raise Exception(
                 "RollingPinEnv.step(): pin y axis should be perpendicular to world z axis."
@@ -400,15 +389,42 @@ class RollingEnv(MPMBaseEnv):
         # Now account for orientation change.
         R_Wpin_final = R_Wpin_init @ transforms3d.euler.euler2mat(
             0, delta_pitch, delta_yaw)
-        if (not self.is_pin_above_table(
-                sapien.Pose(
-                    p=p_Wpin_final,
-                    q=transforms3d.quaternions.mat2quat(R_Wpin_final)))):
+        return sapien.Pose(p=p_Wpin_final,
+                           q=transforms3d.quaternions.mat2quat(R_Wpin_final))
+
+    def step_relative(self, action: np.ndarray) -> None:
+        """
+        The action is
+        (duration, rolling_distance, delta_height, delta_yaw, delta_pitch)
+        where duration is a positive scalar.
+        rolling_distance is a scalar measuring the distance travelled along the
+        rolling direction by the rolling pin center.
+        delta_height is the change on the z height of the rolling pin.
+        delta_yaw is the change of the yaw angle of the rolling pin.
+        delta_pitch is the change of the pitch angle of the rolling pin (the
+        rolling pin capsule axis is its x axis.)
+
+        The robot will follow a linearly-interpolated trajectory from the
+        starting pose to the final pose.
+        """
+        if action.shape != (5, ):
+            raise Exception(
+                f"step_relative() expects action.shape==(5,), got {action.shape}"
+            )
+        duration, rolling_distance, delta_height, delta_yaw, delta_pitch = action
+
+        X_Wpin_init = self.agent.robot.get_pose()
+        X_Wpin_final = self._compute_step_relative_pose(
+            X_Wpin_init, rolling_distance, delta_height, delta_yaw,
+            delta_pitch)
+
+        if (not self.is_pin_above_table(X_Wpin_final)):
             raise Exception(
                 "RollingPinEnv.step(): the rolling pin is not above the table in the commanded final pose."
             )
 
-        self._step_to_pose(duration, p_Wpin_final, R_Wpin_final)
+        self._step_to_pose(duration, X_Wpin_final.p,
+                           transforms3d.quaternions.quat2mat(X_Wpin_final.q))
 
     def step_absolute(self, action: np.ndarray) -> None:
         """
@@ -471,3 +487,57 @@ class RollingEnv(MPMBaseEnv):
             self.step_absolute(action)
         elif self.action_option == ActionOption.LIFTAFTERROLL:
             self.step_with_lift(action)
+
+    def is_action_valid(self, action: np.ndarray) -> bool:
+        """
+        Determines if an action is valid or not.
+        """
+        if self.action_option == ActionOption.LIFTAFTERROLL:
+            duration, start_sweeping_pose, rolling_distance, delta_height, delta_yaw, delta_pitch = np.split(
+                action, [1, 6, 7, 8, 9])
+            if duration[0] <= 0:
+                return False
+            start_pose = sapien.Pose(p=start_sweeping_pose[:3],
+                                     q=transforms3d.euler.euler2quat(
+                                         0, start_sweeping_pose[4],
+                                         start_sweeping_pose[3]))
+            if not self.is_pin_above_table(start_pose):
+                return False
+            end_pose = self._compute_step_relative_pose(
+                start_pose, rolling_distance[0], delta_height[0], delta_yaw[0],
+                delta_pitch[0])
+            if not self.is_pin_above_table(end_pose):
+                return False
+            return True
+        elif self.action_option == ActionOption.RELATIVE:
+            duration, rolling_distance, delta_height, delta_yaw, delta_pitch = action
+            if duration <= 0:
+                return False
+            start_pose = self.agent.robot.get_pose()
+            end_pose = self._compute_step_relative_pose(
+                start_pose, rolling_distance, delta_height, delta_yaw,
+                delta_pitch)
+            if not self.is_pin_above_table(end_pose):
+                return False
+            return True
+        elif self.action_option == ActionOption.ABSOLUTE:
+            duration, command_pin_position, command_pin_quaternion = np.split(
+                action, [1, 4])
+            if duration[0] <= 0:
+                return False
+            if self.is_pin_above_table(
+                    sapien.Pose(p=command_pin_position,
+                                q=command_pin_quaternion)):
+                return False
+            return True
+        else:
+            raise NotImplementedError
+
+    def dough_center(self) -> np.ndarray:
+        """
+        Return the average position of all particles in the dough.
+        """
+        particle_q = self.copy_array_to_numpy(
+            self.mpm_states[0].struct.particle_q,
+            self.mpm_model.struct.n_particles)
+        return np.mean(particle_q, axis=0)
