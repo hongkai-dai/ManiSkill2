@@ -2,6 +2,8 @@ from dataclasses import dataclass
 import typing
 
 import numpy as np
+import torch
+import torch.utils.data
 
 import mani_skill2.envs.mpm.rolling_env as rolling_env
 
@@ -115,3 +117,46 @@ def generate_transition_tuple(
     env.step(action)
     next_state = env.calc_heightmap(options.dx, options.grid_size)
     return TransitionTuple(current_state, action, next_state)
+
+
+class TransitionTupleDataset(torch.utils.data.TensorDataset):
+    # I will assume all heightmaps are generated on the same grid.
+    grid_h: torch.Tensor
+    grid_w: torch.Tensor
+
+    def __init__(self,
+                 transition_tuples: typing.List[TransitionTuple],
+                 dtype=torch.float64):
+        self.grid_h = torch.from_numpy(
+            transition_tuples[0].current_state.grid_h).to(dtype)
+        self.grid_w = torch.from_numpy(
+            transition_tuples[0].current_state.grid_w).to(dtype)
+
+        current_heights = torch.empty(
+            (len(transition_tuples),
+             *transition_tuples[0].current_state.height.shape),
+            dtype=dtype)
+        actions = torch.empty(
+            (len(transition_tuples), *transition_tuples[0].action.shape),
+            dtype=dtype)
+        next_heights = torch.empty(
+            (len(transition_tuples),
+             *transition_tuples[0].next_state.height.shape),
+            dtype=dtype)
+        for i, transition_tuple in enumerate(transition_tuples):
+            # Check if the heightmaps are generated on the same grid.
+            assert (np.array_equal(transition_tuple.current_state.grid_w,
+                                   transition_tuples[0].current_state.grid_w))
+            assert (np.array_equal(transition_tuple.current_state.grid_h,
+                                   transition_tuples[0].current_state.grid_h))
+            assert (np.array_equal(transition_tuple.next_state.grid_w,
+                                   transition_tuples[0].current_state.grid_w))
+            assert (np.array_equal(transition_tuple.next_state.grid_h,
+                                   transition_tuples[0].current_state.grid_h))
+            current_heights[i] = torch.from_numpy(
+                transition_tuple.current_state.height).to(dtype)
+            actions[i] = torch.from_numpy(transition_tuple.action).to(dtype)
+            next_heights[i] = torch.from_numpy(
+                transition_tuple.next_state.height).to(dtype)
+        super(TransitionTupleDataset, self).__init__(current_heights, actions,
+                                                     next_heights)
