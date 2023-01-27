@@ -26,6 +26,10 @@ dist/
 # VSCode editor settings
 .vscode
 
+# Emacs temp files
+*#*
+*.\#*
+
 # project-relevant
 imgui.ini
 
@@ -33,3 +37,6 @@ imgui.ini
 # but can be excluded explicitly
 demos/*
 tmp/*
+
+# Data files
+*lightning*

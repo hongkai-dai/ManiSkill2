@@ -7,9 +7,14 @@ from mani_skill2.utils.visualization.cv2_utils import OpenCVViewer
 import examples.dough_model_learning.data_generation as data_generation
 
 
-def key_to_pose(key: str, position: np.ndarray, quaternion: np.ndarray,
-                R_current: np.ndarray, EE_ACTION: float,
-                delta_theta: float) -> typing.Tuple[np.ndarray, np.ndarray]:
+def key_to_pose(
+    key: str,
+    position: np.ndarray,
+    quaternion: np.ndarray,
+    R_current: np.ndarray,
+    EE_ACTION: float,
+    delta_theta: float,
+) -> typing.Tuple[np.ndarray, np.ndarray]:
     position_new = position.copy()
     quaternion_new = quaternion.copy()
     if key == "i":  # move forward
@@ -28,28 +33,26 @@ def key_to_pose(key: str, position: np.ndarray, quaternion: np.ndarray,
         # yaw in the body frame.
         quaternion_new = transforms3d.quaternions.qmult(
             quaternion,
-            np.array([np.cos(delta_theta / 2), 0, 0,
-                      np.sin(delta_theta / 2)]))
+            np.array([np.cos(delta_theta / 2), 0, 0, np.sin(delta_theta / 2)]),
+        )
     elif key == "h":  # - yaw
         # yaw in the body frame
         quaternion_new = transforms3d.quaternions.qmult(
             quaternion,
-            np.array(
-                [np.cos(-delta_theta / 2), 0, 0,
-                 np.sin(-delta_theta / 2)]))
+            np.array([np.cos(-delta_theta / 2), 0, 0, np.sin(-delta_theta / 2)]),
+        )
     elif key == "p":  # + pitch
         # pitch in the body frame.
         quaternion_new = transforms3d.quaternions.qmult(
             quaternion,
-            np.array([np.cos(delta_theta / 2), 0,
-                      np.sin(delta_theta / 2), 0]))
+            np.array([np.cos(delta_theta / 2), 0, np.sin(delta_theta / 2), 0]),
+        )
     elif key == ";":  # - pitch
         # pitch in the body frame.
         quaternion_new = transforms3d.quaternions.qmult(
             quaternion,
-            np.array(
-                [np.cos(-delta_theta / 2), 0,
-                 np.sin(-delta_theta / 2), 0]))
+            np.array([np.cos(-delta_theta / 2), 0, np.sin(-delta_theta / 2), 0]),
+        )
     return position_new, quaternion_new
 
 
@@ -61,9 +64,9 @@ def main():
 
     # An arbitrary initial heightmap.
     dx = 0.0025
-    height_map = data_generation.generate_circular_cone_heightmap(radius=0.1,
-                                                                  height=0.06,
-                                                                  dx=dx)
+    height_map = data_generation.generate_circular_cone_heightmap(
+        radius=0.1, height=0.06, dx=dx
+    )
     env.set_initial_height_map(height_map, dx)
 
     obs = env.reset()
@@ -75,7 +78,7 @@ def main():
     EE_ACTION = 0.01
 
     sim_step = 0
-    sim_time = 0.
+    sim_time = 0.0
     while True:
         env.render(mode="human")
 
@@ -93,12 +96,12 @@ def main():
         position = pose.p
         quaternion = pose.q
         R_current = transforms3d.quaternions.quat2mat(quaternion)
-        delta_theta = 5. / 180 * np.pi
+        delta_theta = 5.0 / 180 * np.pi
         print(f"current_pose={pose}")
 
-        position_new, quaternion_new = key_to_pose(key, position, quaternion,
-                                                   R_current, EE_ACTION,
-                                                   delta_theta)
+        position_new, quaternion_new = key_to_pose(
+            key, position, quaternion, R_current, EE_ACTION, delta_theta
+        )
 
         if key == "q":
             break
@@ -108,9 +111,9 @@ def main():
         env.step_action_one_way_coupling(pose)
         sim_step += 1
         sim_time += control_dt
-        #obs = env.get_obs()
-        #info = env.get_info(obs=obs)
-        #done = env.get_done(obs=obs, info=info)
+        # obs = env.get_obs()
+        # info = env.get_info(obs=obs)
+        # done = env.get_done(obs=obs, info=info)
 
 
 if __name__ == "__main__":
