@@ -98,10 +98,10 @@ def generate_flat_heightmap(dx, grid_size=(10, 10), height=0.01):
 class RollingEnv(MPMBaseEnv):
     agent: RollingPin
     action_option: ActionOption
-    dough_initializer: Callable
-    height_map_dx: float
-    obs_height_map_dx: float
-    obs_height_map_grid_size: Tuple[int, int]
+    _dough_initializer: Callable
+    _height_map_dx: float
+    _obs_height_map_dx: float
+    _obs_height_map_grid_size: Tuple[int, int]
 
     def __init__(
         self,
@@ -132,15 +132,18 @@ class RollingEnv(MPMBaseEnv):
 
         super().__init__(*args, **kwargs)
 
-    def reset(self, *args, regenerate_heigh_map=True, seed=None, **kwargs):
+    def reset(self, *args, regenerate_height_map=True, seed=None, **kwargs):
         """
         Args:
             regenerate_heigh_map: If True, generates a new height map. This is used
                 for testing purposes.
         """
-        if regenerate_heigh_map:
+        if regenerate_height_map:
             self._initial_height_map = self._dough_initializer(dx=self._height_map_dx)
-        return super().reset(*args, seed=seed, **kwargs)
+        super().reset(*args, seed=seed, **kwargs)
+        # TODO(blake.wulfe): Figure out how to integrate with super().reset() properly
+        # wrt the return value.
+        return self._get_obs()
 
     def _setup_mpm(self):
         self.model_builder = MPMModelBuilder()
@@ -692,7 +695,8 @@ class RollingEnv(MPMBaseEnv):
 
     def _get_obs(self):
         # TODO(blake.wulfe): Generalize this to different obs modes.
+        # See base env get_obs().
         return self.calc_heightmap(
             self._obs_height_map_dx,
             self._obs_height_map_grid_size,
-        )
+        ).height

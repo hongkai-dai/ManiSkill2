@@ -1,4 +1,4 @@
-import examples.dough_model_learning.data_generation as data_generation
+import examples.dough_model_learning.data_generation_utils as data_generation
 
 import unittest
 

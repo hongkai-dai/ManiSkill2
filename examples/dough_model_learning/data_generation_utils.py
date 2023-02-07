@@ -1,3 +1,4 @@
+import abc
 from dataclasses import dataclass
 import typing
 
@@ -140,3 +141,59 @@ class TransitionTupleDataset(torch.utils.data.TensorDataset):
         super(TransitionTupleDataset, self).__init__(
             current_heights, actions, next_heights
         )
+
+
+class GymAgent(abc.ABC):
+    """An agent in the Gym sense (as opposed to Sapien sense)."""
+
+    def reset(self):
+        pass
+
+    @abc.abstractmethod
+    def step(self, obs):
+        """Returns the action of the agent at this timestep."""
+        raise NotImplementedError
+
+
+class DoughRollingCenterOutAgent(GymAgent):
+    """Rolls dough starting from the center and moving outward."""
+
+    def __init__(
+        self,
+        duration: float = 1.0,
+        start_height: float = 0.06,
+        height_delta: float = 0.0025,
+    ):
+        self.duration = duration
+        self.start_height = start_height
+        self.height_delta = height_delta
+
+    def reset(self):
+        self.height = self.start_height
+
+    def step(self, obs):
+        height = self.height
+        self.height -= self.height_delta
+
+        start_position = [0, 0, height]
+        start_yaw = np.random.uniform(0, 2 * np.pi)
+        start_pitch = 0.0
+        rolling_distance = 0.1
+        delta_height = 0.0
+        delta_yaw = 0.0
+        delta_pitch = 0.0
+        action = np.concatenate(
+            (
+                [self.duration],
+                start_position,
+                [
+                    start_yaw,
+                    start_pitch,
+                    rolling_distance,
+                    delta_height,
+                    delta_yaw,
+                    delta_pitch,
+                ],
+            )
+        )
+        return action
