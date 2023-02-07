@@ -8,60 +8,6 @@ import torch.utils.data
 import mani_skill2.envs.mpm.rolling_env as rolling_env
 
 
-def generate_circular_cone_heightmap(
-    radius: float,
-    height: float,
-    dx: float,
-) -> np.ndarray:
-    half_width = int(radius / dx)
-    width = 2 * half_width + 1
-    height_map = np.zeros((width, width), dtype=np.float32)
-    X, Y = np.meshgrid(
-        np.linspace(-half_width * dx, half_width * dx, width),
-        np.linspace(-half_width * dx, half_width * dx, width),
-    )
-    height_map = height - np.sqrt(X ** 2 + Y ** 2) / radius * height
-    height_map = np.clip(height_map, a_min=np.zeros_like(height_map), a_max=None)
-    return height_map
-
-
-def generate_dome_heightmap(
-    dome_radius: float,
-    dome_height: float,
-    dx: float,
-) -> np.ndarray:
-    """Generate the initial heightmap as a dome.
-
-    I assume the initial heightmap is a dome, obtained by rotating an arc about
-    its symmetric axis, which also aligns with the vertical axis in the world.
-
-    Args:
-      dome_radius: Projecting this dome to the horizontal plane, we get a
-      circle. dome_radius is the radius of this projected circle.
-      dome_height: The height from the top of the dome to the bottom of the dome.
-    """
-
-    # This dome is a part of a sphere. We compute the sphere radius.
-    # By Pythagorean theorem, we have
-    # (sphere_radius - dome_height)² + dome_radius² = sphere_radius²
-    sphere_radius = (dome_radius ** 2 + dome_height ** 2) / (2 * dome_height)
-
-    half_width = int(dome_radius / dx)
-    width = 2 * half_width + 1
-    height_map = np.zeros((width, width))
-    X, Y = np.meshgrid(
-        np.linspace(-half_width * dx, half_width * dx, width),
-        np.linspace(-half_width * dx, half_width * dx, width),
-    )
-    height_map = np.clip(
-        np.sqrt(np.clip(sphere_radius ** 2 - (X ** 2 + Y ** 2), a_min=0, a_max=None))
-        - (sphere_radius - dome_height),
-        a_min=0,
-        a_max=None,
-    )
-    return height_map
-
-
 @dataclass
 class SampleActionOptions:
     position_std: float = 0.1

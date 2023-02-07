@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from enum import Enum
 import typing
+from typing import Callable, Tuple
 
 import numpy as np
 import sapien.core as sapien
@@ -32,21 +33,113 @@ class Heightmap:
     height: np.ndarray
 
 
+def generate_circular_cone_heightmap(
+    radius: float,
+    height: float,
+    dx: float,
+) -> np.ndarray:
+    half_width = int(radius / dx)
+    width = 2 * half_width + 1
+    height_map = np.zeros((width, width), dtype=np.float32)
+    X, Y = np.meshgrid(
+        np.linspace(-half_width * dx, half_width * dx, width),
+        np.linspace(-half_width * dx, half_width * dx, width),
+    )
+    height_map = height - np.sqrt(X ** 2 + Y ** 2) / radius * height
+    height_map = np.clip(height_map, a_min=np.zeros_like(height_map), a_max=None)
+    return height_map
+
+
+def generate_dome_heightmap(
+    dome_radius: float,
+    dome_height: float,
+    dx: float,
+) -> np.ndarray:
+    """Generate the initial heightmap as a dome.
+
+    I assume the initial heightmap is a dome, obtained by rotating an arc about
+    its symmetric axis, which also aligns with the vertical axis in the world.
+
+    Args:
+      dome_radius: Projecting this dome to the horizontal plane, we get a
+      circle. dome_radius is the radius of this projected circle.
+      dome_height: The height from the top of the dome to the bottom of the dome.
+    """
+
+    # This dome is a part of a sphere. We compute the sphere radius.
+    # By Pythagorean theorem, we have
+    # (sphere_radius - dome_height)² + dome_radius² = sphere_radius²
+    sphere_radius = (dome_radius ** 2 + dome_height ** 2) / (2 * dome_height)
+
+    half_width = int(dome_radius / dx)
+    width = 2 * half_width + 1
+    height_map = np.zeros((width, width))
+    X, Y = np.meshgrid(
+        np.linspace(-half_width * dx, half_width * dx, width),
+        np.linspace(-half_width * dx, half_width * dx, width),
+    )
+    height_map = np.clip(
+        np.sqrt(np.clip(sphere_radius ** 2 - (X ** 2 + Y ** 2), a_min=0, a_max=None))
+        - (sphere_radius - dome_height),
+        a_min=0,
+        a_max=None,
+    )
+    return height_map
+
+
+def generate_flat_heightmap(dx, grid_size=(10, 10), height=0.01):
+    """Generate a flat heightmap."""
+    # Unused.
+    del dx
+    return np.ones(grid_size) * height
+
+
 @register_gym_env("Rolling-v0", max_episode_steps=10000)
 class RollingEnv(MPMBaseEnv):
     agent: RollingPin
+    action_option: ActionOption
+    dough_initializer: Callable
+    height_map_dx: float
+    obs_height_map_dx: float
+    obs_height_map_grid_size: Tuple[int, int]
 
     def __init__(
         self,
         *args,
+        action_option=ActionOption.LIFTAFTERROLL,
+        dough_initializer=generate_flat_heightmap,
+        height_map_dx=0.0025,
+        obs_height_map_dx=0.01,
+        obs_height_map_grid_size=(32, 32),
         **kwargs,
     ) -> None:
-        self._height_map_dx = 0.0025
-        self._initial_height_map = np.ones((10, 10)) * 0.01
-        self.action_option = ActionOption.LIFTAFTERROLL
+        """
+        Args:
+            action_option: The mode for applying the action.
+            dough_initializer: Callable that returns a heightmap given dx.
+            height_map_dx: The dx to use for the height map internally.
+            obs_height_map_dx: The dx to use for observation dx.
+            obs_height_map_grid_size: The grid size to use for the observation.
+        """
+        self.action_option = action_option
+        self._dough_initializer = dough_initializer
+        self._height_map_dx = height_map_dx
+        self._obs_height_map_dx = obs_height_map_dx
+        self._obs_height_map_grid_size = obs_height_map_grid_size
+
+        # This is set to a non-None value b/c it used during the base class init.
+        self._initial_height_map = self._dough_initializer(dx=self._height_map_dx)
+
         super().__init__(*args, **kwargs)
 
-    def reset(self, *args, seed=None, **kwargs):
+    def reset(self, *args, regenerate_heigh_map=True, seed=None, **kwargs):
+        """
+        Args:
+            regenerate_heigh_map: If True, generates a new height map. This is used
+                for testing purposes.
+        """
+        if regenerate_heigh_map:
+            self._initial_height_map = self._dough_initializer(dx=self._height_map_dx)
         return super().reset(*args, seed=seed, **kwargs)
 
     def _setup_mpm(self):
@@ -297,7 +390,7 @@ class RollingEnv(MPMBaseEnv):
             if h_index < 0:
                 h_index = 0
             if h_index > grid_size_h - 1:
-                h_index = grid_size_h
+                h_index = grid_size_h - 1
             if w_index < 0:
                 w_index = 0
             if w_index > grid_size_w - 1:
@@ -528,6 +621,12 @@ class RollingEnv(MPMBaseEnv):
         elif self.action_option == ActionOption.LIFTAFTERROLL:
             self.step_with_lift(action)
 
+        # TODO(blake.wulfe): Fill these in.
+        rew = 0
+        done = False
+        info = {}
+        return self._get_obs(), rew, done, info
+
     def is_action_valid(self, action: np.ndarray) -> bool:
         """Determines if an action is valid or not."""
         if self.action_option == ActionOption.LIFTAFTERROLL:
@@ -590,3 +689,10 @@ class RollingEnv(MPMBaseEnv):
             self.mpm_states[0].struct.particle_q, self.mpm_model.struct.n_particles
         )
         return np.mean(particle_q, axis=0)
+
+    def _get_obs(self):
+        # TODO(blake.wulfe): Generalize this to different obs modes.
+        return self.calc_heightmap(
+            self._obs_height_map_dx,
+            self._obs_height_map_grid_size,
+        )
