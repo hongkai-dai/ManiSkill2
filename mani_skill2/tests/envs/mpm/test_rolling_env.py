@@ -38,7 +38,7 @@ class TestRollingEnv(unittest.TestCase):
         )
         dx = 0.0025
         dut.set_initial_height_map(height, dx)
-        dut.reset(regenerate_heigh_map=False)
+        dut.reset(regenerate_height_map=False)
 
         height_map = dut.calc_heightmap(dx, height.shape)
         # MPMBuilder.add_mpm_from_height_map actually only set the height to `height` - dx, instead of the desired height.
@@ -187,7 +187,7 @@ class TestRollingEnv(unittest.TestCase):
         dut.set_initial_height_map(
             np.array([[0, 0, 0], [0, height, height], [0, height, height]]), dx
         )
-        dut.reset(regenerate_heigh_map=False)
+        dut.reset(regenerate_height_map=False)
         # Currently when we initialize the height map, the top cell
         # (with size dx * dx * dx) is always not filled. I should fix this bug.
         np.testing.assert_allclose(

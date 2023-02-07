@@ -3,6 +3,7 @@ from enum import Enum
 import typing
 from typing import Callable, Tuple
 
+import gym
 import numpy as np
 import sapien.core as sapien
 from transforms3d.euler import euler2quat
@@ -97,20 +98,16 @@ def generate_flat_heightmap(dx, grid_size=(10, 10), height=0.01):
 @register_gym_env("Rolling-v0", max_episode_steps=10000)
 class RollingEnv(MPMBaseEnv):
     agent: RollingPin
-    action_option: ActionOption
-    dough_initializer: Callable
-    height_map_dx: float
-    obs_height_map_dx: float
-    obs_height_map_grid_size: Tuple[int, int]
 
     def __init__(
         self,
         *args,
-        action_option=ActionOption.LIFTAFTERROLL,
-        dough_initializer=generate_flat_heightmap,
-        height_map_dx=0.0025,
-        obs_height_map_dx=0.01,
-        obs_height_map_grid_size=(32, 32),
+        action_option: ActionOption = ActionOption.LIFTAFTERROLL,
+        dough_initializer: Callable = generate_flat_heightmap,
+        height_map_dx: float = 0.0025,
+        obs_height_map_dx: float = 0.01,
+        obs_height_map_grid_size: Tuple[int, int] = (32, 32),
+        max_height: float = 10.0,
         **kwargs,
     ) -> None:
         """
@@ -126,21 +123,31 @@ class RollingEnv(MPMBaseEnv):
         self._height_map_dx = height_map_dx
         self._obs_height_map_dx = obs_height_map_dx
         self._obs_height_map_grid_size = obs_height_map_grid_size
+        self._max_height = max_height
 
         # This is set to a non-None value b/c it used during the base class init.
         self._initial_height_map = self._dough_initializer(dx=self._height_map_dx)
 
         super().__init__(*args, **kwargs)
+        # Overwrite the inferred observation space with valid bounds.
+        self.observation_space = gym.spaces.Box(
+            low=0,
+            high=self._max_height,
+            shape=self.observation_space.shape,
+        )
 
-    def reset(self, *args, regenerate_heigh_map=True, seed=None, **kwargs):
+    def reset(self, *args, regenerate_height_map=True, seed=None, **kwargs):
         """
         Args:
             regenerate_heigh_map: If True, generates a new height map. This is used
                 for testing purposes.
         """
-        if regenerate_heigh_map:
+        if regenerate_height_map:
             self._initial_height_map = self._dough_initializer(dx=self._height_map_dx)
-        return super().reset(*args, seed=seed, **kwargs)
+        super().reset(*args, seed=seed, **kwargs)
+        # TODO(blake.wulfe): Figure out how to integrate with super().reset() properly
+        # wrt the return value.
+        return self._get_obs()
 
     def _setup_mpm(self):
         self.model_builder = MPMModelBuilder()
@@ -624,7 +631,10 @@ class RollingEnv(MPMBaseEnv):
         # TODO(blake.wulfe): Fill these in.
         rew = 0
         done = False
-        info = {}
+        info = dict(
+            obs_height_map_dx=self._obs_height_map_dx,
+            obs_height_map_grid_size=self._obs_height_map_grid_size,
+        )
         return self._get_obs(), rew, done, info
 
     def is_action_valid(self, action: np.ndarray) -> bool:
@@ -692,7 +702,12 @@ class RollingEnv(MPMBaseEnv):
 
     def _get_obs(self):
         # TODO(blake.wulfe): Generalize this to different obs modes.
-        return self.calc_heightmap(
+        # See base env get_obs().
+        # Return the height as the obs. The grid can be reconstrcuted from
+        # the information contained in the info dict.
+        height = self.calc_heightmap(
             self._obs_height_map_dx,
             self._obs_height_map_grid_size,
-        )
+        ).height
+        height = height.clip(0, self._max_height)
+        return height
