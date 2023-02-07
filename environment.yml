@@ -16,6 +16,7 @@ dependencies:
       - tabulate
       - tqdm
       - h5py
+      - pytest
       # vision
       - transforms3d
       - opencv-python
