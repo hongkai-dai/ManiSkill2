@@ -1,5 +1,5 @@
 import abc
-from typing import Any, Dict, Tuple, TypeVar
+from typing import Dict, Tuple
 
 import torch
 

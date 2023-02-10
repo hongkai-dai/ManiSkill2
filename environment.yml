@@ -26,5 +26,7 @@ dependencies:
       - trimesh
       - open3d
       - rtree
-      # rl
+      # rl / ml
       - ray[rllib]
+      - pytorch-lightning
+      - hydra-core

@@ -40,7 +40,6 @@ class UnetFiLM(nn.Module):
 
         self.n_channels = n_channels
         self.cond_size = cond_size
-        self.bilinear = True
 
         # TODO(blake.wulfe): Clean up these internal modules.
         def double_conv(in_channels, out_channels):
@@ -87,19 +86,14 @@ class UnetFiLM(nn.Module):
                 x = self.conv(x, gamma, beta)
                 return x
 
-        class up(nn.Module):
-            def __init__(self, in_channels, out_channels, bilinear=True):
+        class Up(nn.Module):
+            def __init__(self, in_channels, out_channels):
                 super().__init__()
-
-                if bilinear:
-                    self.up = nn.Upsample(
-                        scale_factor=2, mode="bilinear", align_corners=True
-                    )
-                else:
-                    self.up = nn.ConvTranpose2d(
-                        in_channels // 2, in_channels // 2, kernel_size=2, stride=2
-                    )
-
+                self.up = nn.Upsample(
+                    scale_factor=2,
+                    mode="bilinear",
+                    align_corners=True,
+                )
                 self.conv = double_conv(in_channels, out_channels)
 
             def forward(self, x1, x2):
@@ -126,10 +120,10 @@ class UnetFiLM(nn.Module):
         self.down2 = DownFiLM(128, 256)
         self.down3 = DownFiLM(256, 512)
         self.down4 = DownFiLM(512, 512)
-        self.up1 = up(1024, 256)
-        self.up2 = up(512, 128)
-        self.up3 = up(256, 64)
-        self.up4 = up(128, 64)
+        self.up1 = Up(1024, 256)
+        self.up2 = Up(512, 128)
+        self.up3 = Up(256, 64)
+        self.up4 = Up(128, 64)
         self.out = nn.Conv2d(64, self.n_channels, kernel_size=1)
 
         n_film_parameters = (128 + 256 + 512 + 512) * 2
@@ -138,6 +132,21 @@ class UnetFiLM(nn.Module):
         self.film_generator.bias.data.zero_()
 
     def forward(self, x: torch.Tensor, cond: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            x: Input of shape (batch_size, n_channels, height, width), or
+                of shape (batch_size, height, width), in which case n_channels
+                is assumed to be one.
+            cond: The tensor to condition on. Of Shape (batch_size, cond_size).
+        """
+        # Whether to remove an added dim at the end.
+        should_squeeze = False
+        if x.ndim == 3:
+            # Allow for adding in the 1 channel dim if it is excluded.
+            assert self.n_channels == 1
+            x = torch.unsqueeze(x, dim=1)
+            should_squeeze = True
+
         film_parameters = self.film_generator(cond)
         (d1_g, d1_b, d2_g, d2_b, d3_g, d3_b, d4_g, d4_b) = film_parameters.split(
             (
@@ -162,4 +171,9 @@ class UnetFiLM(nn.Module):
         x = self.up2(x, x3)
         x = self.up3(x, x2)
         x = self.up4(x, x1)
-        return self.out(x)
+        x = self.out(x)
+
+        if should_squeeze:
+            assert x.ndim == 4
+            x = x.squeeze(1)
+        return x
