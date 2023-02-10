@@ -138,6 +138,21 @@ class UnetFiLM(nn.Module):
         self.film_generator.bias.data.zero_()
 
     def forward(self, x: torch.Tensor, cond: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            x: Input of shape (batch_size, n_channels, height, width), or
+                of shape (batch_size, height, width), in which case n_channels
+                is assumed to be one.
+            cond: The tensor to condition on. Of Shape (batch_size, cond_size).
+        """
+        # Whether to remove an added dim at the end.
+        should_squeeze = False
+        if x.ndim == 3:
+            # Allow for adding in the 1 channel dim if it is excluded.
+            assert self.n_channels == 1
+            x = torch.unsqueeze(x, dim=1)
+            should_squeeze = True
+
         film_parameters = self.film_generator(cond)
         (d1_g, d1_b, d2_g, d2_b, d3_g, d3_b, d4_g, d4_b) = film_parameters.split(
             (
@@ -162,4 +177,9 @@ class UnetFiLM(nn.Module):
         x = self.up2(x, x3)
         x = self.up3(x, x2)
         x = self.up4(x, x1)
-        return self.out(x)
+        x = self.out(x)
+
+        if should_squeeze:
+            assert x.ndim == 4
+            x = x.squeeze(1)
+        return x

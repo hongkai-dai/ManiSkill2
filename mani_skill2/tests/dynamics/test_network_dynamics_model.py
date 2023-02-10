@@ -1,19 +1,8 @@
 import pytest
 import torch
-import torch.nn as nn
 
 from mani_skill2.dynamics.network_dynamics_model import NetworkDynamicsModel
-
-
-class MockFCNetwork(nn.Module):
-    def __init__(self, obs_size, act_size):
-        super().__init__()
-        self.layer = nn.Linear(obs_size + act_size, obs_size)
-
-    def forward(self, obs: torch.Tensor, act: torch.Tensor) -> torch.Tensor:
-        x = torch.cat((obs, act), dim=-1)
-        x = self.layer(x)
-        return x
+from mani_skill2.utils.testing.dynamics_test_utils import MockFCNetwork
 
 
 @pytest.mark.parametrize("batch_size", (1, 2))

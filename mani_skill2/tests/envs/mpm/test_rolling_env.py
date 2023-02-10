@@ -2,6 +2,7 @@ import functools
 import unittest
 
 import numpy as np
+import pytest
 import sapien.core as sapien
 import transforms3d
 
@@ -9,6 +10,7 @@ import mani_skill2.envs.mpm.rolling_env as rolling_env
 from mani_skill2.envs.mpm.rolling_env import generate_dome_heightmap
 
 
+@pytest.mark.filterwarnings("ignore::UserWarning")
 class TestRollingEnv(unittest.TestCase):
     def test_step_action_one_way_coupling(self):
         dut = rolling_env.RollingEnv(sim_freq=100, mpm_freq=2000)
