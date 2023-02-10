@@ -710,4 +710,6 @@ class RollingEnv(MPMBaseEnv):
             self._obs_height_map_grid_size,
         ).height
         height = height.clip(0, self._max_height)
+        # Add a channel.
+        height = np.expand_dims(height, 0)
         return height
