@@ -14,18 +14,22 @@ class SampleBatchDataset(torch.utils.data.Dataset):
     This is useful when data has been collected using rllib, but you want to use that
     data to train a model using the pytorch ecosystem of tools.
 
-    TOOD(blake.wulfe): Change the implementation such that it doesn't just load everything into memory.
+    TOOD(blake.wulfe): Change the implementation such that it doesn't just load
+    everything into memory.
     This is actually easy to do using IterableDataset.
 
     Args:
         inputs: List of files or file patterns from which to load the sample batches.
             This is the same as rllib's JsonReader input.
         keys: The keys from the stored `SampleBatch`s to return in the sample.
-        non_error_keys: Additional keys to extract, but if they don't exist do not result in an error.
+        non_error_keys: Additional keys to extract, but if they don't exist do
+            not result in an error.
         state_transform: Callable to apply to the values associated with state keys.
         debug_size: If provided, limit the size of the dataset to this amount.
-            This is not exact, but instead loads the minimum number of saved batches to surpass this value.
-        debug_size_mode: Mode for loading debug_size. See `load_sample_batches` documentation.
+            This is not exact, but instead loads the minimum number of saved
+            batches to surpass this value.
+        debug_size_mode: Mode for loading debug_size. See `load_sample_batches`
+            documentation.
     """
 
     # The keys associated with states.
@@ -78,7 +82,7 @@ class SampleBatchDataset(torch.utils.data.Dataset):
                 value = np.float32(value)
             if key == self.ACTION_KEY and value.dtype == np.float64:
                 value = np.float32(value)
-            if not isinstance(value, collections.Mapping):
+            if not isinstance(value, collections.abc.Mapping):
                 # Values should always be batched as 2d tensors.
                 # To ensure this, each individual value should at least be 1d.
                 value = np.atleast_1d(value)

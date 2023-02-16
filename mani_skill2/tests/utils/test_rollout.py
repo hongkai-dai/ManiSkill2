@@ -1,5 +1,4 @@
 import gym
-import numpy as np
 import pytest
 
 from mani_skill2.utils.rollout import (

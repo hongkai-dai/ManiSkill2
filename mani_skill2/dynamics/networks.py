@@ -24,9 +24,11 @@ def FiLM(x: torch.Tensor, gamma: torch.Tensor, beta: torch.Tensor) -> torch.Tens
 
 
 class UnetFiLM(nn.Module):
-    """U-net architecture that incorporates conditioning information through FiLM layers.
+    """U-net architecture that incorporates conditioning information through FiLM
+    layers.
 
-    Implementation based on https://github.com/milesial/Pytorch-UNet/blob/master/unet/unet_parts.py
+    Implementation based on
+    https://github.com/milesial/Pytorch-UNet/blob/master/unet/unet_parts.py
     """
 
     def __init__(self, n_channels: int, cond_size: int):

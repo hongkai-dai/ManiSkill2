@@ -43,7 +43,8 @@ class TestRollingEnv(unittest.TestCase):
         dut.reset(regenerate_height_map=False)
 
         height_map = dut.calc_heightmap(dx, height.shape)
-        # MPMBuilder.add_mpm_from_height_map actually only set the height to `height` - dx, instead of the desired height.
+        # MPMBuilder.add_mpm_from_height_map actually only set the height to
+        # `height` - dx, instead of the desired height.
         np.testing.assert_allclose(height - dx, height_map.height)
         self.assertEqual(height_map.grid_h.shape, (3,))
         self.assertEqual(height_map.grid_w.shape, (4,))
@@ -248,14 +249,14 @@ class TestGenerateDomeHeightmap(unittest.TestCase):
         )
         xy_height = height_map[x_index, y_index]
 
-        sphere_radius = (dome_radius ** 2 + dome_height ** 2) / (2 * dome_height)
+        sphere_radius = (dome_radius**2 + dome_height**2) / (2 * dome_height)
         self.assertAlmostEqual(
-            (sphere_radius - dome_height) ** 2 + dome_radius ** 2, sphere_radius ** 2
+            (sphere_radius - dome_height) ** 2 + dome_radius**2, sphere_radius**2
         )
         self.assertAlmostEqual(
             (xy_height + (sphere_radius - dome_height)) ** 2
-            + (xy_coordinate ** 2).sum(),
-            sphere_radius ** 2,
+            + (xy_coordinate**2).sum(),
+            sphere_radius**2,
         )
 
 
