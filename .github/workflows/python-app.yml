@@ -38,9 +38,9 @@ jobs:
         flake8 ./mani_skill2/dynamics/ --count --select=E9,F63,F7,F82 --show-source --statistics
         flake8 ./mani_skill2/data/ --count --select=E9,F63,F7,F82 --show-source --statistics
         # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
-        flake8 ./mani_skill2/tests/ --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-        flake8 ./mani_skill2/dynamics/ --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-        flake8 ./mani_skill2/data/ --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+        flake8 ./mani_skill2/tests/ --count --exit-zero --max-complexity=10 --max-line-length=88 --statistics
+        flake8 ./mani_skill2/dynamics/ --count --exit-zero --max-complexity=10 --max-line-length=88 --statistics
+        flake8 ./mani_skill2/data/ --count --exit-zero --max-complexity=10 --max-line-length=88 --statistics
     - name: Test with pytest
       run: |
         pytest mani_skill2/tests

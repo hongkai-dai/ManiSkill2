@@ -5,13 +5,15 @@ from ray.rllib.policy.sample_batch import SampleBatch, concat_samples
 
 
 def concat_overlapping_keys_of_samples(samples: List[SampleBatch]) -> SampleBatch:
-    """Custom version of SampleBatch.concat_samples that only takes the overlapping keys.
+    """Custom version of SampleBatch.concat_samples that only takes the
+      overlapping keys.
 
     Args:
         samples: The list of samples to concat.
 
     Returns:
-        A sample batch with the samples concatenated, but only consisting of the common keys.
+        A sample batch with the samples concatenated, but only consisting of
+        the common keys.
     """
     assert len(samples) > 0
     assert isinstance(samples[0], SampleBatch)
@@ -34,19 +36,23 @@ def load_sample_batches(
     debug_size_mode: str = "ordered",
     only_overlapping_keys: bool = True,
 ) -> SampleBatch:
-    """Loads sample batches from inputs into memory and concatenates them into a single `SampleBatch`.
+    """Loads sample batches from inputs into memory and concatenates them into
+     a single `SampleBatch`.
 
     Args:
-        inputs: List of input filepath patterns. Same as what rllib.offline.json_reader.JsonReader takes.
+        inputs: List of input filepath patterns. Same as what
+            rllib.offline.json_reader.JsonReader takes.
         debug_size: If provided, limits the number of samples to this number.
         debug_size_mode: Mode for loading debug_size.
-            "ordered": loads the first debug_size elements, which means they are likely correlated.
+            "ordered": loads the first debug_size elements, which means they
+             are likely correlated.
                 This mode should be used when you want to quickly load the data.
             "shuffled": loads all the data then randomly selects debug_size elements.
-                This mode should be used when you want to load a limited amount of data, but in a minimally
-                correlated fashion.
-        only_overlapping_keys: If True, only selects overlapping keys. If False, raising an error
-            when keys are encountered that differ across samples.
+                This mode should be used when you want to load a limited amount
+                of data, but in a minimally correlated fashion.
+        only_overlapping_keys: If True, only selects overlapping keys.
+            If False, raising an error when keys are encountered that differ
+            across samples.
 
     Returns:
         A SampleBatch containing the data loaded into memory.
