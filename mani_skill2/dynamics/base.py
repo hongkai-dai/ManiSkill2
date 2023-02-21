@@ -1,5 +1,5 @@
 import abc
-from typing import Dict, Tuple
+from typing import Dict, Tuple, TypeVar
 
 import torch
 
@@ -8,20 +8,29 @@ class DynamicsModel(abc.ABC, torch.nn.Module):
     """Abstract base class for a dynamics model."""
 
     @abc.abstractmethod
-    def step(self, obs: torch.Tensor, act: torch.Tensor) -> Tuple[torch.Tensor, Dict]:
-        """Steps the dynamics forward one timestep.
+    def step(
+        self, state: torch.Tensor, act: torch.Tensor
+    ) -> Tuple[torch.Tensor, bool, Dict]:
+        """Steps the dynamics forward one transition.
 
         Args:
-            obs: The observation at this timestep.
-                This is assumed be to batched, so shape (B, ...).
-            act: The action at this timestep.
-                Also assumed to be batched, shape (B, ...).
+            state: The state at the beginning of this transition.
+            act: The action at this transition.
 
         Returns:
-            A tuple containing the next observation and a
-            dictionary of information about the step.
+            next_state (torch.Tensor): the state at the end of this transition.
+            terminated (bool): Whether this transition should be terminated.
+            info (Dict): auxiliary diagnostic information
         """
 
-    def reset(self) -> None:
+    @abc.abstractmethod
+    def reset(self) -> torch.Tensor:
         """Resets any internal state; called at the beginning of an episode."""
-        pass
+
+    def observation(self, state: torch.Tensor) -> torch.Tensor:
+        """
+        Computes the observation for a given state.
+        The default behavior is to assume fully-observable state, and return the state
+        as the observation.
+        """
+        return state
