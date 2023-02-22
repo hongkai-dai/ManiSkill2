@@ -34,3 +34,12 @@ class DynamicsModel(abc.ABC, torch.nn.Module):
         as the observation.
         """
         return state
+
+    def state_from_observation(self, obs: torch.Tensor) -> torch.Tensor:
+        """
+        Computes (estimates) the state from an observation.
+
+        The default behavior is to assume fully-observable state, and return the
+        observation as the state.
+        """
+        return obs
