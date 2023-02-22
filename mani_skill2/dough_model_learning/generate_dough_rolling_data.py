@@ -17,7 +17,7 @@ import functools
 
 import fire
 
-from examples.dough_model_learning.data_generation_utils import (
+from mani_skill2.dough_model_learning.data_generation_utils import (
     DoughRollingCenterOutAgent,
 )
 
