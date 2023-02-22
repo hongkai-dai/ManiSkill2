@@ -1,4 +1,4 @@
-import examples.dough_model_learning.data_generation_utils as data_generation
+import mani_skill2.dough_model_learning.data_generation_utils as data_generation
 
 import unittest
 

@@ -1,4 +1,3 @@
-import abc
 from dataclasses import dataclass
 import typing
 
@@ -7,6 +6,7 @@ import torch
 import torch.utils.data
 
 import mani_skill2.envs.mpm.rolling_env as rolling_env
+from mani_skill2.algorithms.gym_agent import GymAgent
 
 
 @dataclass
@@ -141,18 +141,6 @@ class TransitionTupleDataset(torch.utils.data.TensorDataset):
         super(TransitionTupleDataset, self).__init__(
             current_heights, actions, next_heights
         )
-
-
-class GymAgent(abc.ABC):
-    """An agent in the Gym sense (as opposed to Sapien sense)."""
-
-    def reset(self):
-        pass
-
-    @abc.abstractmethod
-    def step(self, obs):
-        """Returns the action of the agent at this timestep."""
-        raise NotImplementedError
 
 
 class DoughRollingCenterOutAgent(GymAgent):

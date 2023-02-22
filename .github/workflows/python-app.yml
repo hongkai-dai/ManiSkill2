@@ -44,4 +44,4 @@ jobs:
     - name: Test with pytest
       run: |
         pytest mani_skill2/tests
-        python -m unittest discover examples/dough_model_learning/test
+        python -m unittest discover mani_skill2/dough_model_learning/test
