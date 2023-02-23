@@ -2,9 +2,8 @@ import numpy as np
 import transforms3d
 import typing
 
-from mani_skill2.envs.mpm.rolling_env import RollingEnv
+from mani_skill2.envs.mpm.rolling_env import RollingEnv, generate_circular_cone_heightmap
 from mani_skill2.utils.visualization.cv2_utils import OpenCVViewer
-import examples.dough_model_learning.data_generation as data_generation
 
 
 def key_to_pose(
@@ -64,7 +63,7 @@ def main():
 
     # An arbitrary initial heightmap.
     dx = 0.0025
-    height_map = data_generation.generate_circular_cone_heightmap(
+    height_map = generate_circular_cone_heightmap(
         radius=0.1, height=0.06, dx=dx
     )
     env.set_initial_height_map(height_map, dx)
