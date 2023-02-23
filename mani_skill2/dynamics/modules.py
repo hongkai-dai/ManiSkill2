@@ -31,9 +31,9 @@ class DynamicsPLModule(pl.LightningModule):
         return loss
 
     def _step(self, batch: Dict[str, torch.Tensor], batch_idx: int) -> torch.Tensor:
-        obs, action, next_obs = batch["obs"], batch["actions"], batch["new_obs"]
-        pred_next_obs, _ = self.dynamics_model.step(obs, action)
-        loss = self._compute_loss(next_obs, pred_next_obs)
+        state, action, next_state = batch["state"], batch["actions"], batch["new_state"]
+        pred_next_state, _, _ = self.dynamics_model.step(state, action)
+        loss = self._compute_loss(next_state, pred_next_state)
         return loss
 
     def training_step(
