@@ -34,9 +34,13 @@ def get_mock_fc_batch(
 
 class MockRewardModel(GoalBasedRewardModel):
     def __init__(self, state_size: int, act_size: int):
+        super().__init__()
         self.state_size = state_size
         self.act_size = act_size
         self.goal = torch.ones(state_size)
+
+    def to(self, device):
+        self.goal = self.goal.to(device)
 
     def step(
         self,
@@ -79,4 +83,3 @@ class MockGenerativeEnv(GenerativeEnv):
         return gym.space.Box(
             low=-100 * np.ones((self.act_size,)), high=100 * np.ones((self.act_size,))
         )
-
