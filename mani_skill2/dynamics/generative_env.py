@@ -72,3 +72,37 @@ class GenerativeEnv(abc.ABC):
         """
         Returns the action space of the environment.
         """
+
+    def rollout(
+        self,
+        state_init: torch.Tensor,
+        act_sequence: torch.Tensor,
+        discount_factor: float,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Given the initial state and the action sequence, compute the rollout reward and state/observation sequence.
+
+        Args:
+            state_init (torch.Tensor): a batch of initial state, size is batch_size * state_size.
+            act_sequence (torch.Tensor): a batch of action sequences, size is batch_size * num_steps * act_size.
+            discount_factor (float): discount the transition step by this factor per step.
+
+        Returns:
+            state_sequence (torch.Tensor): a batch of state sequences in the rollouts.
+            rewards (torch.Tensor): the total cumulative reward for each rollout.
+        """
+        device = state_init.device
+        num_rollouts = state_init.shape[0]
+        assert num_rollouts == act_sequence.shape[0]
+        num_steps = act_sequence.shape[1]
+        state_sequence = torch.empty(
+            [num_rollouts, num_steps + 1] + list(state_init.shape)[1:], device=device
+        )
+        state_sequence[:, 0, ...] = state_init
+        rewards = torch.empty(num_rollouts, device=device)
+        for i in range(num_steps):
+            state_sequence[:, i + 1, :], reward, _, _ = self.step(
+                state_sequence[:, i, :], act_sequence[:, i, :]
+            )
+            rewards += discount_factor**i * reward
+        return state_sequence, rewards
