@@ -8,8 +8,7 @@ from mani_skill2.algorithms.gym_agent import GymAgent
 
 
 class GradientShootingAgent(GymAgent):
-    """
-    Find the action sequence by minimizing the cumulative loss through gradient descent.
+    """Find the action sequence by minimizing the cumulative loss through gradient descent.
 
     In the optimization problem, the decision variable is the action sequence. We start
     with an initial guess of the action sequence and then reduce the cumulative loss by
@@ -41,9 +40,9 @@ class GradientShootingAgent(GymAgent):
         self.gradient_steps = gradient_steps
 
     def set_action_sequence_init(self, act_sequence: torch.Tensor):
-        """
-        Set up the initial guess of the action sequence. The optimization will start
-        from this initial guess.
+        """Set up the initial guess of the action sequence.
+
+        The optimization will start from this initial guess.
         """
         assert act_sequence.shape[0] == self.planning_steps
         self.act_sequence = act_sequence
@@ -67,4 +66,5 @@ class GradientShootingAgent(GymAgent):
             total_loss = -total_reward[0]
             total_loss.backward()
             optimizer.step()
+        # TODO(blake.wulfe): Change to a single action as the first return value.
         return best_act_sequence, dyn_infos

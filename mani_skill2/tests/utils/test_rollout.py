@@ -37,7 +37,7 @@ class MockGymAgent:
         pass
 
     def step(self, obs):
-        return 0
+        return 0, {}
 
 
 @pytest.mark.parametrize("max_steps", [1, 2, 10])

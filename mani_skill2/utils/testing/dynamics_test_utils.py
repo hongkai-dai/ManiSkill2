@@ -37,10 +37,7 @@ class MockRewardModel(GoalBasedRewardModel):
         super().__init__()
         self.state_size = state_size
         self.act_size = act_size
-        self.goal = torch.ones(state_size)
-
-    def to(self, device):
-        self.goal = self.goal.to(device)
+        self.register_buffer("goal", torch.ones(state_size))
 
     def step(
         self,
@@ -48,7 +45,7 @@ class MockRewardModel(GoalBasedRewardModel):
         obs: torch.Tensor,
         action: torch.Tensor,
     ) -> Tuple[torch.Tensor, Dict]:
-        reward = ((self.goal - state) ** 2).sum(dim=-1) + (action**2).sum(dim=-1)
+        reward = ((self.goal - state) ** 2).sum(dim=-1) + (action ** 2).sum(dim=-1)
         return reward, dict()
 
     def set_goal(self, goal: torch.Tensor):
@@ -59,11 +56,13 @@ class MockGenerativeEnv(GenerativeEnv):
     dynamics_model: NetworkDynamicsModel
     reward_model: MockRewardModel
 
-    def __init__(self, state_size, act_size):
+    def __init__(self, state_size, act_size, device="cpu"):
         self.dynamics_model = NetworkDynamicsModel(
             MockFCNetwork(state_size, act_size), is_residual=True
         )
+        self.dynamics_model.to(device)
         self.reward_model = MockRewardModel(state_size, act_size)
+        self.reward_model.to(device)
         self.state_size = state_size
         self.act_size = act_size
 

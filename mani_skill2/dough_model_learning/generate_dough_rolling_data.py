@@ -31,12 +31,16 @@ from mani_skill2.utils.rollout import (
 )
 
 
-def get_height_map_generator(radius=0.1, height=0.06):
-    return functools.partial(
-        generate_circular_cone_heightmap,
-        radius=radius,
-        height=height,
-    )
+class CircularConeHeightMapGenerator:
+    def __init__(self, radius=0.1, height=0.06):
+        self.generate = functools.partial(
+            generate_circular_cone_heightmap,
+            radius=radius,
+            height=height,
+        )
+
+    def __call__(self, *args, **kwargs):
+        return self.generate(*args, **kwargs)
 
 
 def get_env(**kwargs):
@@ -56,7 +60,7 @@ def main(
     obs_height_map_dx=0.01,
     obs_height_map_grid_size=(32, 32),
 ):
-    height_map_generator = get_height_map_generator()
+    height_map_generator = CircularConeHeightMapGenerator()
     env = get_env(
         sim_freq=sim_freq,
         mpm_freq=mpm_freq,

@@ -38,12 +38,20 @@ def main(output_dir, data_filepath, max_num_episodes_to_visalize=5):
     episodes = batch.split_by_episode()
     for episode in episodes[:max_num_episodes_to_visalize]:
         eps_id = episode["eps_id"][0]
-        filepath = os.path.join(output_dir, f"episode_{eps_id:02d}.gif")
+        filepath = os.path.join(output_dir, f"episode_{eps_id:02d}_heightmap.gif")
         create_heightmap_transition_gif(
             episode["obs"],
             episode["new_obs"],
             filepath,
         )
+        if "render" in episode:
+            filepath = os.path.join(output_dir, f"episode_{eps_id:02d}_render.gif")
+            create_gif(episode["render"].astype(np.uint8), filepath, duration=0.5)
+
+    # Compute average return.
+    average_return = np.mean([episode["rewards"].sum() for episode in episodes])
+    print(f"Average return: {average_return}")
+        
 
 
 if __name__ == "__main__":

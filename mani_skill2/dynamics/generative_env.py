@@ -12,21 +12,26 @@ from mani_skill2.dynamics.reward import (
     GoalBasedRewardModel,
 )
 
-
-class GenerativeEnv(abc.ABC):
-    dynamics_model: DynamicsModel
-    reward_model: GoalBasedRewardModel
-
-    """
-    Abstract base class that planners take as input. This class wraps the 
-    dynamics model together with the reward.
-    """
+# TODO(blake.wulfe): Decide if this should be an ABC or not.
+class GenerativeEnv:
+    def __init__(
+        self,
+        dynamics_model,
+        reward_model,
+        observation_space,
+        action_space,
+    ):
+        self.dynamics_model = dynamics_model
+        self.reward_model = reward_model
+        self.observation_space = observation_space
+        self.action_space = action_space
 
     @abc.abstractmethod
     def reset(self) -> torch.Tensor:
         """
         Reset and return the state.
         """
+        pass
 
     def step(
         self, state: torch.Tensor, action: torch.Tensor
@@ -108,6 +113,6 @@ class GenerativeEnv(abc.ABC):
             state_sequence[:, i + 1, :], reward, _, step_info = self.step(
                 state_sequence[:, i, :], act_sequence[:, i, :]
             )
-            rewards += discount_factor**i * reward
+            rewards += discount_factor ** i * reward
             dyn_infos.append(step_info)
         return state_sequence, rewards, dict(dyn_infos=dyn_infos)
