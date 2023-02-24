@@ -40,3 +40,29 @@ trainer:
   max_epochs: 100
   gradient_clip_val: 10.0
   track_grad_norm: 2
+
+eval:
+  env:
+    _target_: mani_skill2.envs.mpm.rolling_env.RollingEnv
+    sim_freq: 200
+    mpm_freq: 1000
+    dough_initializer:
+      _target_: mani_skill2.dough_model_learning.generate_dough_rolling_data.CircularConeHeightMapGenerator
+      radius: 0.1
+      height: 0.06
+    obs_height_map_dx: 0.01
+    obs_height_map_grid_size: [32, 32]
+  algorithm:
+    # TODO(blake.wulfe): Figure out if you can use hydra.instantiate for this.
+    # _target_: mani_skill2.algorithms.random_shooting.RandomShootingAgent
+    # generative_env:
+    #   _target_: mani_skill2.dynamics.generative_env
+    # action_sampler:
+    #   _target_: mani_skill2.algorithms.action_samplers.RandomDoughRollingActionSampler
+    #   # TODO(blake.wulfe): Avoid hardcoding this.
+    #   action_size: 10
+  device: "cuda"
+  checkpoint: /ssd1/datasets/robotics/tasks/model_based_dough_roll/training/dynamics/2023-02-10/08-13-58/checkpoints/last.ckpt
+  # checkpoint: null
+  num_episodes: 5
+  max_num_steps: 5
