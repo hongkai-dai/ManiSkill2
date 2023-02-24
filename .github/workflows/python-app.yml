@@ -31,6 +31,9 @@ jobs:
     - name: set CUDA
       run: |
         export CUDA_VISIBLE_DEVICES=0
+    - name: set PYTHONPATH
+      run: |
+        export PYTHONPATH=$PWD:$PYTHONPATH
     - name: Lint with flake8
       run: |
         # stop the build if there are Python syntax errors or undefined names
