@@ -44,7 +44,7 @@ def main(output_dir, data_filepath, max_num_episodes_to_visalize=5):
             episode["new_obs"],
             filepath,
         )
-        if "render" in episode:
+        if "render" in episode and episode["render"][0] is not None:
             filepath = os.path.join(output_dir, f"episode_{eps_id:02d}_render.gif")
             create_gif(episode["render"].astype(np.uint8), filepath, duration=0.5)
 

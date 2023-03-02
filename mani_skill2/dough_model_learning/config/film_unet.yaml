@@ -8,10 +8,16 @@ module:
   dynamics_model:
     _target_: mani_skill2.dynamics.network_dynamics_model.NetworkDynamicsModel
     is_residual: True
+    state_normalizer:
+      _target_: mani_skill2.dynamics.normalizers.HeightMapNormalizer
+    output_normalizer:
+      _target_: mani_skill2.dynamics.normalizers.HeightMapNormalizer
     network:
       _target_: mani_skill2.dynamics.networks.UnetFiLM
       n_channels: 1
       cond_size: 10
+  visualizer:
+    _target_: mani_skill2.dynamics.visualizers.HeightMapDynamicsPLVisualizer
 
 data:
   train_loader:
@@ -20,7 +26,7 @@ data:
     shuffle: True
     dataset:
       _target_: mani_skill2.data.sample_batch_dataset.SampleBatchDataset
-      inputs: /ssd1/datasets/robotics/tasks/model_based_dough_roll/datasets/2_6_2023/batch_04/
+      inputs: /ssd1/datasets/robotics/tasks/model_based_dough_roll/datasets/2_6_2023/batch_08/
       debug_size: null
       debug_size_mode: "ordered"
   val_loader:
@@ -29,7 +35,7 @@ data:
     shuffle: False
     dataset:
       _target_: mani_skill2.data.sample_batch_dataset.SampleBatchDataset
-      inputs: /ssd1/datasets/robotics/tasks/model_based_dough_roll/datasets/2_6_2023/batch_04/
+      inputs: /ssd1/datasets/robotics/tasks/model_based_dough_roll/datasets/2_6_2023/batch_09/
       debug_size: null
       debug_size_mode: "ordered"
 
@@ -37,7 +43,7 @@ trainer:
   _target_: pytorch_lightning.Trainer
   devices: 1
   accelerator: "gpu"
-  max_epochs: 100
+  max_epochs: 1000
   gradient_clip_val: 10.0
   track_grad_norm: 2
 
@@ -62,7 +68,7 @@ eval:
     #   # TODO(blake.wulfe): Avoid hardcoding this.
     #   action_size: 10
   device: "cuda"
-  checkpoint: /ssd1/datasets/robotics/tasks/model_based_dough_roll/training/dynamics/2023-02-10/08-13-58/checkpoints/last.ckpt
+  checkpoint: /ssd1/datasets/robotics/tasks/model_based_dough_roll/training/dynamics/2023-03-02/17-56-33/checkpoints/checkpoint-v1.ckpt
   # checkpoint: null
   num_episodes: 5
   max_num_steps: 5
