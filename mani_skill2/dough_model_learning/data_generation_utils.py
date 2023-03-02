@@ -7,6 +7,7 @@ import torch.utils.data
 
 import mani_skill2.envs.mpm.rolling_env as rolling_env
 from mani_skill2.algorithms.gym_agent import GymAgent
+from mani_skill2.algorithms.action_samplers import RandomDoughRollingActionSampler
 
 
 @dataclass
@@ -192,3 +193,21 @@ class DoughRollingCenterOutAgent(GymAgent):
             )
         )
         return action
+
+
+class DoughRollingRandomActionAgent(GymAgent):
+    """GymAgent agent wrapper for RandomDoughRollingActionSampler."""
+
+    def __init__(self):
+        self.sampler = RandomDoughRollingActionSampler(
+            action_size=10,
+            num_samples=1,
+        )
+
+    def reset(self):
+        pass
+
+    def step(self, obs: np.ndarray) -> np.ndarray:
+        action = self.sampler(obs, 1)
+        action = action.detach().cpu().numpy().squeeze()
+        return action, {}

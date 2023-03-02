@@ -19,6 +19,7 @@ import fire
 
 from mani_skill2.dough_model_learning.data_generation_utils import (
     DoughRollingCenterOutAgent,
+    DoughRollingRandomActionAgent,
 )
 
 from mani_skill2.envs.mpm.rolling_env import (
@@ -47,8 +48,13 @@ def get_env(**kwargs):
     return RollingEnv(**kwargs)
 
 
-def get_agent():
-    return DoughRollingCenterOutAgent()
+def get_agent(agent_type):
+    if agent_type == "random":
+        return DoughRollingRandomActionAgent()
+    elif agent_type == "out":
+        return DoughRollingCenterOutAgent()
+    else:
+        raise ValueError(agent_type)
 
 
 def main(
@@ -59,6 +65,7 @@ def main(
     mpm_freq=1000,
     obs_height_map_dx=0.01,
     obs_height_map_grid_size=(32, 32),
+    agent_type="random",
 ):
     height_map_generator = CircularConeHeightMapGenerator()
     env = get_env(
@@ -68,8 +75,14 @@ def main(
         obs_height_map_dx=obs_height_map_dx,
         obs_height_map_grid_size=obs_height_map_grid_size,
     )
-    agent = get_agent()
-    rollouts = generate_rollouts(env, agent, num_episodes, max_num_steps)
+    agent = get_agent(agent_type)
+    rollouts = generate_rollouts(
+        env,
+        agent,
+        num_episodes,
+        max_num_steps,
+        render=True,
+    )
     save_sample_batch(output_filepath, rollouts)
 
 

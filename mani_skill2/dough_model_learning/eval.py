@@ -2,6 +2,7 @@ import logging
 import os
 
 import hydra
+import numpy as np
 from omegaconf import DictConfig
 import torch
 
@@ -37,13 +38,27 @@ def get_algo(env, cfg):
     # TODO(blake.wulfe): Hardcode as 10 instead of using env.action_space
     # because env.action_space is wrong. Fix that then fix this.
     action_size = 10
-    action_sampler = RandomDoughRollingActionSampler(action_size)
+    num_samples = 100
+    action_sampler = RandomDoughRollingActionSampler(
+        action_size,
+        num_samples=num_samples,
+    )
     algorithm = RandomShootingAgent(
         generative_env,
         action_sampler,
-        planning_steps=5,
+        planning_steps=2,
+        discount_factor=0.5,
+        verbose_info=False,
     )
     return algorithm
+
+
+def summarize_rollouts(batch):
+    episode_batches = batch.split_by_episode()
+    returns = []
+    for episode_batch in episode_batches:
+        returns.append(episode_batch["rewards"].sum())
+    logging.info(f"Mean episode return: {np.mean(returns)}")
 
 
 @hydra.main(config_path="config", config_name="film_unet")
@@ -60,6 +75,7 @@ def main(cfg: DictConfig):
         cfg.eval.max_num_steps,
         render=True,
     )
+    summarize_rollouts(rollouts)
     dirpath = os.getcwd()
     output_filepath = os.path.join(dirpath, "eval_rollouts")
     save_sample_batch(output_filepath, rollouts)

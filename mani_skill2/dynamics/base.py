@@ -9,13 +9,13 @@ class DynamicsModel(abc.ABC, torch.nn.Module):
 
     @abc.abstractmethod
     def step(
-        self, state: torch.Tensor, act: torch.Tensor
+        self, state: torch.Tensor, action: torch.Tensor
     ) -> Tuple[torch.Tensor, bool, Dict]:
         """Steps the dynamics forward one transition.
 
         Args:
             state: The state at the beginning of this transition.
-            act: The action at this transition.
+            action: The action at this transition.
 
         Returns:
             next_state (torch.Tensor): the state at the end of this transition.

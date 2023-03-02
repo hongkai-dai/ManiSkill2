@@ -2,11 +2,13 @@ from typing import Dict, Tuple
 
 import gym
 import numpy as np
+from ray.rllib.policy.sample_batch import SampleBatch
 import torch
 import torch.nn as nn
 
 from mani_skill2.dynamics.generative_env import GenerativeEnv
 from mani_skill2.dynamics.network_dynamics_model import NetworkDynamicsModel
+from mani_skill2.dynamics.normalizers import Normalizer
 from mani_skill2.dynamics.reward import GoalBasedRewardModel
 
 
@@ -28,8 +30,16 @@ def get_mock_fc_batch(
 ):
     state = torch.zeros((batch_size, state_size))
     act = torch.zeros((batch_size, act_size))
+    rew = torch.zeros((batch_size,))
     new_state = torch.zeros((batch_size, state_size))
-    return dict(state=state, actions=act, new_state=new_state)
+    dones = torch.zeros((batch_size,), dtype=bool)
+    return {
+        SampleBatch.OBS: state,
+        SampleBatch.ACTIONS: act,
+        SampleBatch.REWARDS: rew,
+        SampleBatch.NEXT_OBS: new_state,
+        SampleBatch.DONES: dones,
+    }
 
 
 class MockRewardModel(GoalBasedRewardModel):
@@ -82,3 +92,11 @@ class MockGenerativeEnv(GenerativeEnv):
         return gym.space.Box(
             low=-100 * np.ones((self.act_size,)), high=100 * np.ones((self.act_size,))
         )
+
+
+class MockNormalizer(Normalizer):
+    def normalize(self, x):
+        return x * 10
+
+    def denormalize(self, x):
+        return x / 10

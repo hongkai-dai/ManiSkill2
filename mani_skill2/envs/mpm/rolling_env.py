@@ -636,6 +636,11 @@ class RollingEnv(MPMBaseEnv):
             obs_height_map_grid_size=self._obs_height_map_grid_size,
         )
         obs = self._get_obs()
+        # TODO(blake.wulfe): Figure out how to use different reward models like the following:
+        # >>> from mani_skill2.dough_model_learning.dough_reward_models import FlatDoughRollingRewardModel
+        # >>> import torch
+        # >>> rew_model = FlatDoughRollingRewardModel()
+        # >>> rew = rew_model.step(torch.tensor([obs]), None, None)[0].item()
         return obs, rew, done, info
 
     def is_action_valid(self, action: np.ndarray) -> bool:
