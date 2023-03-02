@@ -141,6 +141,7 @@ class UnetFiLM(nn.Module):
                 is assumed to be one.
             cond: The tensor to condition on. Of Shape (batch_size, cond_size).
         """
+        assert cond.shape[-1] == self.cond_size
         # Whether to remove an added dim at the end.
         should_squeeze = False
         if x.ndim == 3:

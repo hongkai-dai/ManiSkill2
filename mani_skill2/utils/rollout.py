@@ -13,6 +13,7 @@ from ray.rllib.models.preprocessors import get_preprocessor
 from ray.rllib.offline.json_reader import JsonReader
 from ray.rllib.offline.json_writer import JsonWriter
 from ray.rllib.policy.sample_batch import SampleBatch, concat_samples
+from tqdm import tqdm
 
 # TODO(blake.wulfe): Figure out an gym agent interface.
 def rollout_episode(
@@ -20,6 +21,7 @@ def rollout_episode(
     agent: Any,
     max_steps: int,
     episode_id: int,
+    render: bool = False,
 ) -> SampleBatch:
     """Rolls out an episode in env with the agent.
 
@@ -37,9 +39,13 @@ def rollout_episode(
 
     agent.reset()
     obs = env.reset()
+    rend = None
+    if render:
+        rend = env.render(mode="rgb_array")
     for t in range(max_steps):
-        action = agent.step(obs)
+        action, agent_info = agent.step(obs)
         new_obs, rew, done, info = env.step(action)
+        info["agent_info"] = agent_info
 
         builder.add_values(
             t=t,
@@ -50,11 +56,14 @@ def rollout_episode(
             new_obs=prep.transform(new_obs),
             dones=done,
             infos=info,
+            render=rend,
         )
 
         if done:
             break
         obs = new_obs
+        if render:
+            rend = env.render(mode="rgb_array")
 
     return builder.build_and_reset()
 
@@ -64,6 +73,7 @@ def generate_rollouts(
     agent: Any,
     num_episodes: int,
     max_steps: int,
+    render: bool = False,
 ) -> SampleBatch:
     """Generates multiple rollouts.
 
@@ -77,8 +87,8 @@ def generate_rollouts(
         A SampleBatch of the concatenated episode rollouts.
     """
     batches = []
-    for i in range(num_episodes):
-        batch = rollout_episode(env, agent, max_steps, i)
+    for i in tqdm(range(num_episodes)):
+        batch = rollout_episode(env, agent, max_steps, i, render)
         batches.append(batch)
     return concat_samples(batches)
 

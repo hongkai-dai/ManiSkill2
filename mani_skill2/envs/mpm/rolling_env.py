@@ -635,7 +635,8 @@ class RollingEnv(MPMBaseEnv):
             obs_height_map_dx=self._obs_height_map_dx,
             obs_height_map_grid_size=self._obs_height_map_grid_size,
         )
-        return self._get_obs(), rew, done, info
+        obs = self._get_obs()
+        return obs, rew, done, info
 
     def is_action_valid(self, action: np.ndarray) -> bool:
         """Determines if an action is valid or not."""

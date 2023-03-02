@@ -11,21 +11,37 @@ class TestRandomShootingAgent:
     @pytest.mark.parametrize("act_size", (2,))
     @pytest.mark.parametrize("planning_steps", (3, 5))
     @pytest.mark.parametrize("num_rollouts", (1, 4))
-    def test_step(self, state_size, act_size, planning_steps, num_rollouts):
-        generative_env = MockGenerativeEnv(state_size, act_size)
+    @pytest.mark.parametrize("device", ("cuda", "cpu"))
+    def test_step(
+        self,
+        state_size,
+        act_size,
+        planning_steps,
+        num_rollouts,
+        device,
+    ):
+        generative_env = MockGenerativeEnv(state_size, act_size, device)
 
         def action_sampler(obs, steps):
-            return torch.rand((num_rollouts, steps, act_size))
+            return torch.rand((num_rollouts, steps, act_size), device=device)
 
         discount_factor = 0.5
         dut = RandomShootingAgent(
-            generative_env, action_sampler, planning_steps, discount_factor
+            generative_env,
+            action_sampler,
+            planning_steps,
+            discount_factor,
+            device=device,
+            verbose_info=True,
         )
         seed = 1234
         torch.manual_seed(seed)
 
-        obs = torch.ones((state_size,))
-        act_sequence, state_sequence, best_reward = dut.step(obs)
+        obs = np.ones((state_size,))
+        action, info = dut.step(obs)
+        act_sequence = info["action_sequence"]
+        state_sequence = info["state_sequence"]
+        best_reward = info["best_reward"]
 
         assert act_sequence.shape == (planning_steps, act_size)
         assert state_sequence.shape == (planning_steps + 1, state_size)
@@ -33,8 +49,8 @@ class TestRandomShootingAgent:
         # Make sure that state_sequence, best_reward is consistent with act_sequence.
         reward_expected = 0
         np.testing.assert_allclose(
-            state_sequence[0].detach().numpy(),
-            generative_env.dynamics_model.state_from_observation(obs).detach().numpy(),
+            state_sequence[0].cpu().detach().numpy(),
+            generative_env.dynamics_model.state_from_observation(obs),
         )
         for i in range(planning_steps):
             next_state, _, _ = generative_env.dynamics_model.step(
@@ -42,12 +58,12 @@ class TestRandomShootingAgent:
             )
             obs_i = generative_env.dynamics_model.observation(state_sequence[i])
             np.testing.assert_allclose(
-                state_sequence[i + 1].detach().numpy(),
-                next_state.detach().numpy(),
+                state_sequence[i + 1].cpu().detach().numpy(),
+                next_state.cpu().detach().numpy(),
                 atol=1e-6,
             )
             reward, _ = generative_env.reward_model.step(
                 state_sequence[i], obs_i, act_sequence[i]
             )
-            reward_expected += reward * discount_factor**i
+            reward_expected += reward * discount_factor ** i
         np.testing.assert_allclose(best_reward.item(), reward_expected.item())
