@@ -11,7 +11,7 @@ class FlatDoughRollingRewardModel(GoalBasedRewardModel):
     ) -> Tuple[float, Dict]:
         dims = tuple(range(1, state.ndim))
         num_pos = (state > 0).sum(dim=dims)
-        avg_pos = state.sum(dim=dims) / num_pos
+        avg_pos = state.sum(dim=dims) / (num_pos + 1e-12)
         rew = -avg_pos * 10
         return rew, {}
 
