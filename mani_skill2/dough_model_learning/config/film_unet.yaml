@@ -4,7 +4,7 @@ hydra:
 
 module:
   _target_: mani_skill2.dynamics.modules.DynamicsPLModule
-  lr: 1e-4
+  lr: 1e-3
   dynamics_model:
     _target_: mani_skill2.dynamics.network_dynamics_model.NetworkDynamicsModel
     is_residual: True
