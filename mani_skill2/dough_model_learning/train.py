@@ -29,7 +29,7 @@ def get_trainer(cfg):
         ),
         EarlyStopping(
             monitor="val/loss",
-            patience=50,
+            patience=500,
             mode="min",
         ),
     ]
