@@ -57,7 +57,7 @@ class EllipseShape(DoughShape):
         self.height = height
         self.length = length
         area = total_volume / height
-        self.width = area / (np.pi * self.length)
+        self.width = 4 * area / (np.pi * self.length)
         self.grid_coord_h = grid_coord_h
         self.grid_coord_w = grid_coord_w
 
@@ -85,13 +85,14 @@ class EllipseShape(DoughShape):
         grid_coord = torch.cat((grid_w.unsqueeze(2), grid_h.unsqueeze(2)), dim=-1).view(
             -1, 2
         )
-        cos_theta = torch.cos(angle)
-        sin_theta = torch.sin(angle)
+        dtype = self.grid_coord_w.dtype
+        cos_theta = torch.cos(angle.to(dtype))
+        sin_theta = torch.sin(angle.to(dtype))
         R = torch.tensor([[cos_theta, -sin_theta], [sin_theta, cos_theta]])
-        grid_coord_ellipse = (grid_coord - center_position) @ R
+        grid_coord_ellipse = (grid_coord - center_position.to(dtype)) @ R
         in_ellipse_mask = (
-            grid_coord_ellipse[:, 0] ** 2 / self.length**2
-            + grid_coord_ellipse[:, 1] ** 2 / self.width**2
+            grid_coord_ellipse[:, 0] ** 2 / (self.length/2)**2
+            + grid_coord_ellipse[:, 1] ** 2 / (self.width/2)**2
         ) <= 1
         height = self.height * in_ellipse_mask.view(grid_h.shape)
         return height
@@ -133,7 +134,7 @@ class ShapeRewardModel(GoalBasedRewardModel):
 
         desired_height_repeated = desired_height.repeat(
             [batch_size] + [1] * desired_height.ndim
-        )
+        ).to(state.device)
         # A combination of MSE and L1 loss.
         diff = (state - desired_height_repeated).view((state.shape[0], -1))
         error = (diff**2).mean(dim=-1) + torch.abs(diff).mean(dim=-1)

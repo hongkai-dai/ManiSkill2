@@ -1,6 +1,7 @@
 import abc
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Union
 
+import numpy as np
 import torch
 
 
@@ -35,11 +36,14 @@ class DynamicsModel(abc.ABC, torch.nn.Module):
         """
         return state
 
-    def state_from_observation(self, obs: torch.Tensor) -> torch.Tensor:
+    def state_from_observation(self, obs: Union[torch.Tensor, np.ndarray]) -> torch.Tensor:
         """
         Computes (estimates) the state from an observation.
 
         The default behavior is to assume fully-observable state, and return the
         observation as the state.
         """
-        return obs
+        if isinstance(obs, np.ndarray):
+            return torch.from_numpy(obs)
+        else:
+            return obs

@@ -40,7 +40,7 @@ class RandomShootingAgent(GymAgent):
     def step(
         self,
         obs: np.ndarray,
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    ) -> Tuple[np.ndarray, dict]:
         """Plans the best action sequence.
 
         Given the current observation, sample many action sequence. Compute the
@@ -50,9 +50,8 @@ class RandomShootingAgent(GymAgent):
             obs: The current observation.
 
         Returns:
-            act_sequence (torch.Tensor): The best action sequence.
-            state_sequence (torch.Tensor): The state sequence in the best rollout.
-            total_reward (torch.Tensor): The total reward of the best rollout.
+            action (torch.Tensor): The next action.
+            info (dict): the auxillary information.
         """
         action_sequences = self.action_sampler(obs, self.planning_steps)
         action_sequences = action_sequences.to(self.device)
