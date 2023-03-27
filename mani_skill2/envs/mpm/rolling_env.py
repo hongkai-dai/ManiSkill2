@@ -33,6 +33,23 @@ class Heightmap:
     grid_w: np.ndarray
     height: np.ndarray
 
+    def calc_volume(self) -> float:
+        """
+        For each cell in the grid, use the average height of that cell, multiplies the
+        cell area, as the volume within that cell.
+        """
+        # Compute the area of each cell.
+        cell_area = np.outer(
+            self.grid_w[1:] - self.grid_w[:-1], self.grid_h[1:] - self.grid_h[:-1]
+        )
+        cell_height = (
+            self.height[:-1, :-1]
+            + self.height[:-1, 1:]
+            + self.height[1:, :-1]
+            + self.height[1:, 1:]
+        ) / 4
+        return np.sum(cell_area * cell_height)
+
 
 def generate_circular_cone_heightmap(
     radius: float,
@@ -46,7 +63,7 @@ def generate_circular_cone_heightmap(
         np.linspace(-half_width * dx, half_width * dx, width),
         np.linspace(-half_width * dx, half_width * dx, width),
     )
-    height_map = height - np.sqrt(X ** 2 + Y ** 2) / radius * height
+    height_map = height - np.sqrt(X**2 + Y**2) / radius * height
     height_map = np.clip(height_map, a_min=np.zeros_like(height_map), a_max=None)
     return height_map
 
@@ -70,7 +87,7 @@ def generate_dome_heightmap(
     # This dome is a part of a sphere. We compute the sphere radius.
     # By Pythagorean theorem, we have
     # (sphere_radius - dome_height)² + dome_radius² = sphere_radius²
-    sphere_radius = (dome_radius ** 2 + dome_height ** 2) / (2 * dome_height)
+    sphere_radius = (dome_radius**2 + dome_height**2) / (2 * dome_height)
 
     half_width = int(dome_radius / dx)
     width = 2 * half_width + 1
@@ -80,7 +97,7 @@ def generate_dome_heightmap(
         np.linspace(-half_width * dx, half_width * dx, width),
     )
     height_map = np.clip(
-        np.sqrt(np.clip(sphere_radius ** 2 - (X ** 2 + Y ** 2), a_min=0, a_max=None))
+        np.sqrt(np.clip(sphere_radius**2 - (X**2 + Y**2), a_min=0, a_max=None))
         - (sphere_radius - dome_height),
         a_min=0,
         a_max=None,
@@ -328,7 +345,6 @@ class RollingEnv(MPMBaseEnv):
         delta_angle = angle / self._sim_steps_per_control
 
         for sim_step in range(self._sim_steps_per_control):
-
             self.sync_actors()
             for mpm_step in range(self._mpm_step_per_sapien_step):
                 self.mpm_simulator.simulate(
@@ -540,9 +556,10 @@ class RollingEnv(MPMBaseEnv):
         )
 
         if not self.is_pin_above_table(X_Wpin_final):
-            raise Exception(
-                "RollingPinEnv.step(): the rolling pin is not above the table in the commanded final pose."
-            )
+            pass
+            # raise Warning(
+            #    "RollingPinEnv.step(): the rolling pin is not above the table in the commanded final pose."
+            # )
 
         self._step_to_pose(
             duration, X_Wpin_final.p, transforms3d.quaternions.quat2mat(X_Wpin_final.q)

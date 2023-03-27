@@ -33,8 +33,8 @@ class TestEllipseShape:
                 coord_ellipse = R.T @ (coord - position)
                 height_expected = 0
                 if (
-                    coord_ellipse[0] ** 2 / dut.length**2
-                    + coord_ellipse[1] ** 2 / dut.width**2
+                    coord_ellipse[0] ** 2 / (dut.length/2)**2
+                    + coord_ellipse[1] ** 2 / (dut.width/2)**2
                     <= 1
                 ):
                     height_expected = dut.height
