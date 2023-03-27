@@ -259,6 +259,20 @@ class TestGenerateDomeHeightmap(unittest.TestCase):
             sphere_radius**2,
         )
 
+class TestHeightmap:
+    def test_calc_volume(self):
+        grid_h = np.linspace(0, 1, 5)
+        grid_w = np.linspace(-0.5, 0.5, 3)
+        height = np.array([[0.5, 1, 0.5, 1, 0],
+                           [1, 1, 0.5, 0, 1],
+                           [0, 1, 1, 2, 0]])
+        dut = rolling_env.Heightmap(grid_h=grid_h, grid_w=grid_w, height=height)
+        volume = dut.calc_volume()
+        cell_area = 0.25 * 0.5
+        cell_height = (height[:-1, :-1] + height[:-1, 1:] + height[1:, :-1] + height[1:, 1:])/ 4
+        volume_expected = np.sum(cell_height * cell_area)
+        np.testing.assert_allclose(volume, volume_expected)
 
+        
 if __name__ == "__main__":
     unittest.main()

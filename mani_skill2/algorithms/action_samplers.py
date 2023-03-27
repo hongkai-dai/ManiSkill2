@@ -61,6 +61,9 @@ class RandomDoughRollingActionSampler:
         """
         self.action_size = action_size
         self.num_samples = num_samples
+        self.height_bounds = height_bounds
+        self.rolling_distance_bounds = rolling_distance_bounds
+        self.rolling_duration_bounds = rolling_duration_bounds
         self.height_distribution = _get_uniform_dist_or_constant_from_bounds(
             height_bounds,
         )
@@ -71,6 +74,20 @@ class RandomDoughRollingActionSampler:
             rolling_duration_bounds,
         )
         self.device = device
+
+    def bounds(self) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Return the lower and upper bounds of the action
+        """
+        lower_bound = torch.full((self.action_size,), -np.inf, device=self.device)
+        upper_bound = torch.full((self.action_size,), np.inf, device=self.device)
+        lower_bound[0] = self.rolling_duration_bounds[0]
+        upper_bound[0] = self.rolling_duration_bounds[1]
+        lower_bound[3] = self.height_bounds[0]
+        upper_bound[3] = self.height_bounds[1]
+        lower_bound[6] = self.rolling_distance_bounds[0]
+        upper_bound[6] = self.rolling_distance_bounds[1]
+        return (lower_bound, upper_bound)
 
     def __call__(self, obs: np.ndarray, num_steps: int) -> torch.Tensor:
         """

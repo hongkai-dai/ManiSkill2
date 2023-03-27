@@ -25,12 +25,18 @@ class TestGradientShootingAgent:
 
         discount_factor = 0.5
         gradient_steps = 1
+        action_bounds = (
+            -torch.ones((act_size,), device=device),
+            torch.ones((act_size,), device=device),
+        )
         dut = GradientShootingAgent(
             generative_env,
             planning_steps,
             discount_factor,
             torch.optim.Adam,
             gradient_steps,
+            action_bounds,
+            device,
         )
 
         initial_states = torch.rand(
@@ -106,7 +112,7 @@ class TestGradientShootingAgent:
     @pytest.mark.parametrize("state_size", (3,))
     @pytest.mark.parametrize("act_size", (2,))
     @pytest.mark.parametrize("planning_steps", (3, 5))
-    @pytest.mark.parametrize("gradient_steps", (2, 5))
+    @pytest.mark.parametrize("gradient_steps", (1, 5))
     @pytest.mark.parametrize("batch_size", (1, 3))
     @pytest.mark.parametrize("device", {"cpu", "cuda"})
     def test_step(
@@ -118,32 +124,45 @@ class TestGradientShootingAgent:
         generative_env.reward_model.to(device)
 
         discount_factor = 0.5
+        action_bounds = (
+            -torch.ones((act_size,), device=device),
+            torch.ones((act_size,), device=device),
+        )
         dut = GradientShootingAgent(
             generative_env,
             planning_steps,
             discount_factor,
             torch.optim.Adam,
             gradient_steps,
+            action_bounds,
+            device,
         )
 
-        obs = torch.ones((state_size,), device=device)
+        obs = np.ones((state_size,))
         act_sequences_init = torch.zeros(
             (batch_size, planning_steps, act_size), device=device
         )
         with torch.no_grad():
-            state_init = generative_env.dynamics_model.state_from_observation(obs)
+            state_init = generative_env.dynamics_model.state_from_observation(obs).to(
+                device
+            )
             state_init_repeat = state_init.repeat([batch_size] + [1] * state_init.ndim)
             state_sequences_init, reward_init, _ = generative_env.rollout(
                 state_init_repeat, act_sequences_init, discount_factor
             )
 
         dut.set_action_sequences_init(act_sequences_init)
-        best_next_actions, info = dut.step(obs)
-        assert best_next_actions.shape == (batch_size, act_size)
+        best_next_action, info = dut.step(obs)
+        assert best_next_action.shape == (act_size,)
+        assert isinstance(best_next_action, np.ndarray)
         assert isinstance(info, dict)
+        best_rewards = info["best_rewards"]
         np.testing.assert_array_equal(
-            info["best_act_sequences"][:, 0, ...].cpu().detach().numpy(),
-            best_next_actions.cpu().detach().numpy(),
+            info["best_act_sequences"][torch.argmax(best_rewards), 0, ...]
+            .cpu()
+            .detach()
+            .numpy(),
+            best_next_action,
         )
         with torch.no_grad():
             states_optimized, reward_optimized, _ = generative_env.rollout(
