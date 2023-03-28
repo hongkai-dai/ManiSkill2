@@ -152,7 +152,7 @@ class GradientShootingAgent(GymAgent):
         # Deep copy self.act_sequences so that this step() function does not modify the
         # class data.
         act_sequences = copy.deepcopy(self.act_sequences)
-        optimizer = self.optimizer([act_sequences], lr=1e-1)
+        optimizer = self.optimizer([act_sequences])
         initial_state = self.generative_env.dynamics_model.state_from_observation(
             obs
         ).to(self.device)

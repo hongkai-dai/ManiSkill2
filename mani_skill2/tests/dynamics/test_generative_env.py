@@ -51,7 +51,11 @@ class TestGenerativeEnv:
         reward_per_step = torch.zeros((batch_size, steps), device=device)
         for i in range(steps):
             reward_per_step[:, i], _ = dut.reward_model.step(
-                states[:, i, :], dut.observation(states[:, i, :]), act_sequence[:, i, :]
+                states[:, i, :],
+                dut.observation(states[:, i, :]),
+                states[:, i + 1, :],
+                dut.observation(states[:, i + 1, :]),
+                act_sequence[:, i, :],
             )
         if reward_option == RewardOption.Always:
             reward_expected = torch.sum(

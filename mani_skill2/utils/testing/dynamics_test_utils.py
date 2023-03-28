@@ -53,6 +53,8 @@ class MockRewardModel(GoalBasedRewardModel):
         self,
         state: torch.Tensor,
         obs: torch.Tensor,
+        next_state: torch.Tensor,
+        next_obs: torch.Tensor,
         action: torch.Tensor,
     ) -> Tuple[torch.Tensor, Dict]:
         reward = ((self.goal - state) ** 2).sum(dim=-1) + (action**2).sum(dim=-1)

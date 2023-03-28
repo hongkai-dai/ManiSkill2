@@ -85,6 +85,8 @@ class RandomDoughRollingActionSampler:
         upper_bound[0] = self.rolling_duration_bounds[1]
         lower_bound[3] = self.height_bounds[0]
         upper_bound[3] = self.height_bounds[1]
+        lower_bound[4] = 0
+        upper_bound[4] = 2 * np.pi
         lower_bound[6] = self.rolling_distance_bounds[0]
         upper_bound[6] = self.rolling_distance_bounds[1]
         return (lower_bound, upper_bound)
