@@ -492,7 +492,7 @@ class RollingEnv(MPMBaseEnv):
         """
         p_Wpin_init = start_pose.p
         R_Wpin_init = transforms3d.quaternions.quat2mat(start_pose.q)
-        if not self.is_pin_y_horizontal(R_Wpin_init, 1e-3):
+        if not self.is_pin_y_horizontal(R_Wpin_init, 1e-2):
             raise Exception(
                 "RollingPinEnv.step(): pin y axis should be perpendicular to world z axis."
             )

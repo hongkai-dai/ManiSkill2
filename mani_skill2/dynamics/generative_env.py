@@ -4,6 +4,8 @@ from typing import Dict, Tuple
 import gym
 import torch
 
+from enum import Enum
+
 from mani_skill2.dynamics.base import (
     DynamicsModel,
 )
@@ -11,6 +13,12 @@ from mani_skill2.dynamics.base import (
 from mani_skill2.dynamics.reward import (
     GoalBasedRewardModel,
 )
+
+
+class RewardOption(Enum):
+    FinalTimeOnly = 1  # Only impose the (un-discounted) reward at the final time.
+    Always = 2  # Impose the discounted reward in the entire rollout.
+
 
 # TODO(blake.wulfe): Decide if this should be an ABC or not.
 class GenerativeEnv:
@@ -20,11 +28,13 @@ class GenerativeEnv:
         reward_model,
         observation_space,
         action_space,
+        reward_option: RewardOption = RewardOption.Always,
     ):
         self.dynamics_model = dynamics_model
         self.reward_model = reward_model
         self.observation_space = observation_space
         self.action_space = action_space
+        self.reward_option = reward_option
 
     @abc.abstractmethod
     def reset(self) -> torch.Tensor:
@@ -113,6 +123,9 @@ class GenerativeEnv:
             state_sequence[:, i + 1, :], reward, _, step_info = self.step(
                 state_sequence[:, i, :], act_sequence[:, i, :]
             )
-            rewards += discount_factor ** i * reward
+            if self.reward_option == RewardOption.Always:
+                rewards += discount_factor**i * reward
+            elif self.reward_option == RewardOption.FinalTimeOnly:
+                rewards += reward if i == num_steps - 1 else 0
             dyn_infos.append(step_info)
         return state_sequence, rewards, dict(dyn_infos=dyn_infos)

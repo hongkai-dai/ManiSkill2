@@ -79,8 +79,8 @@ class RandomDoughRollingActionSampler:
         """
         Return the lower and upper bounds of the action
         """
-        lower_bound = torch.full((self.action_size,), -np.inf, device=self.device)
-        upper_bound = torch.full((self.action_size,), np.inf, device=self.device)
+        lower_bound = torch.full((self.action_size,), 0.0, device=self.device)
+        upper_bound = torch.full((self.action_size,), 0.0, device=self.device)
         lower_bound[0] = self.rolling_duration_bounds[0]
         upper_bound[0] = self.rolling_duration_bounds[1]
         lower_bound[3] = self.height_bounds[0]
