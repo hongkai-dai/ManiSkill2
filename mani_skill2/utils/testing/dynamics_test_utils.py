@@ -6,7 +6,7 @@ from ray.rllib.policy.sample_batch import SampleBatch
 import torch
 import torch.nn as nn
 
-from mani_skill2.dynamics.generative_env import GenerativeEnv
+from mani_skill2.dynamics.generative_env import GenerativeEnv, RewardOption
 from mani_skill2.dynamics.network_dynamics_model import NetworkDynamicsModel
 from mani_skill2.dynamics.normalizers import Normalizer
 from mani_skill2.dynamics.reward import GoalBasedRewardModel
@@ -55,7 +55,7 @@ class MockRewardModel(GoalBasedRewardModel):
         obs: torch.Tensor,
         action: torch.Tensor,
     ) -> Tuple[torch.Tensor, Dict]:
-        reward = ((self.goal - state) ** 2).sum(dim=-1) + (action ** 2).sum(dim=-1)
+        reward = ((self.goal - state) ** 2).sum(dim=-1) + (action**2).sum(dim=-1)
         return reward, dict()
 
     def set_goal(self, goal: torch.Tensor):
@@ -66,7 +66,9 @@ class MockGenerativeEnv(GenerativeEnv):
     dynamics_model: NetworkDynamicsModel
     reward_model: MockRewardModel
 
-    def __init__(self, state_size, act_size, device="cpu"):
+    def __init__(
+        self, state_size, act_size, device="cpu", reward_option=RewardOption.Always
+    ):
         self.dynamics_model = NetworkDynamicsModel(
             MockFCNetwork(state_size, act_size), is_residual=True
         )
@@ -75,6 +77,7 @@ class MockGenerativeEnv(GenerativeEnv):
         self.reward_model.to(device)
         self.state_size = state_size
         self.act_size = act_size
+        self.reward_option = reward_option
 
     def reset(self) -> torch.Tensor:
         return torch.zeros(self.state_size)
