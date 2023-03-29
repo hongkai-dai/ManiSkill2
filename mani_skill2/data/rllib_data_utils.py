@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Collection, List, Optional
 
 from ray.rllib.offline.json_reader import JsonReader
 from ray.rllib.policy.sample_batch import SampleBatch, concat_samples
@@ -57,10 +57,11 @@ def load_sample_batches(
     Returns:
         A SampleBatch containing the data loaded into memory.
     """
+    if isinstance(inputs, Collection) and not isinstance(inputs, str):
+        inputs = list(inputs)
     concat_fn = (
         concat_overlapping_keys_of_samples if only_overlapping_keys else concat_samples
     )
-
     reader = JsonReader(inputs)
     if debug_size is None:
         batches = list(reader.read_all_files())

@@ -81,7 +81,7 @@ def main(
         agent,
         num_episodes,
         max_num_steps,
-        render=True,
+        render=False,
     )
     save_sample_batch(output_filepath, rollouts)
 
