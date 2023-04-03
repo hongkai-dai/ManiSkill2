@@ -11,7 +11,7 @@ from mani_skill2.envs.mpm.rolling_env import generate_dome_heightmap
 
 
 @pytest.mark.filterwarnings("ignore::UserWarning")
-class TestRollingEnv(unittest.TestCase):
+class TestRollingEnv:
     def test_step_action_one_way_coupling(self):
         dut = rolling_env.RollingEnv(sim_freq=100, mpm_freq=2000)
 
@@ -46,8 +46,8 @@ class TestRollingEnv(unittest.TestCase):
         # MPMBuilder.add_mpm_from_height_map actually only set the height to
         # `height` - dx, instead of the desired height.
         np.testing.assert_allclose(height - dx, height_map.height)
-        self.assertEqual(height_map.grid_h.shape, (3,))
-        self.assertEqual(height_map.grid_w.shape, (4,))
+        assert height_map.grid_h.shape == (3,)
+        assert height_map.grid_w.shape == (4,)
         np.testing.assert_allclose(
             height_map.grid_h[1:] - height_map.grid_h[:-1], dx * np.ones((2,))
         )
@@ -76,14 +76,17 @@ class TestRollingEnv(unittest.TestCase):
         np.testing.assert_allclose(X_Wpin_init.q, X_Wpin_final.q)
 
         # Check the rolling distance.
-        self.assertAlmostEqual(
+        np.testing.assert_allclose(
             (X_Wpin_final.p - X_Wpin_init.p).dot(
                 transforms3d.quaternions.quat2mat(X_Wpin_init.q)[:, 1]
             ),
             rolling_distance,
+            atol=1e-6,
         )
         # Check the height
-        self.assertAlmostEqual(X_Wpin_final.p[2], X_Wpin_init.p[2] + delta_height)
+        np.testing.assert_allclose(
+            X_Wpin_final.p[2], X_Wpin_init.p[2] + delta_height, atol=1e-6
+        )
 
         # Now change the yaw and the pitch
         delta_yaw = 0.1
@@ -165,21 +168,19 @@ class TestRollingEnv(unittest.TestCase):
     def test_is_action_valid(self):
         dut = rolling_env.RollingEnv(sim_freq=500, mpm_freq=2000)
         dut.action_option = rolling_env.ActionOption.LIFTAFTERROLL
-        self.assertTrue(
-            dut.is_action_valid(
-                np.array([0.1, 0, 0, 0.05, 0.2, 0.01, 0.1, 0.01, 0.1, 0.01])
-            )
+        assert dut.is_action_valid(
+            np.array([0.1, 0, 0, 0.05, 0.2, 0.01, 0.1, 0.01, 0.1, 0.01])
         )
         # duration is negative.
-        self.assertFalse(
+        assert not (
             dut.is_action_valid(np.array([-0.1, 0, 0, 0.05, 0, 0, 0.1, 0, 0, 0]))
         )
         # The pin is below the table at the start pose.
-        self.assertFalse(
+        assert not (
             dut.is_action_valid(np.array([0.5, 0, 0, 0.01, 0, 0.2, 0.5, 0.4, 0, -0.2]))
         )
         # The pin is below the table at the end pose.
-        self.assertFalse(
+        assert not (
             dut.is_action_valid(np.array([0.5, 0, 0, 0.05, 0, 0, 0.1, -0.03, 0, 0.2]))
         )
 
@@ -197,7 +198,11 @@ class TestRollingEnv(unittest.TestCase):
             dut.dough_center(), np.array([dx / 2, dx / 2, (height - dx) / 2])
         )
 
-    def test_step(self):
+    @pytest.mark.parametrize(
+        "obs_mode",
+        ("particle_position", "heightmap"),
+    )
+    def test_step(self, obs_mode):
         dough_initializer = functools.partial(
             rolling_env.generate_circular_cone_heightmap,
             radius=0.1,
@@ -207,6 +212,7 @@ class TestRollingEnv(unittest.TestCase):
             sim_freq=500,
             mpm_freq=2000,
             dough_initializer=dough_initializer,
+            obs_mode=obs_mode,
         )
         dut.reset()
 
@@ -225,6 +231,11 @@ class TestRollingEnv(unittest.TestCase):
         )
 
         obs, rew, done, info = dut.step(action)
+        if obs_mode == "heightmap":
+            assert isinstance(obs, np.ndarray)
+        elif obs_mode == "particle_position":
+            assert isinstance(obs, np.ndarray)
+            assert obs.shape[1] == 3
 
 
 class TestGenerateDomeHeightmap(unittest.TestCase):
@@ -237,8 +248,8 @@ class TestGenerateDomeHeightmap(unittest.TestCase):
             dome_height,
             dx,
         )
-        self.assertAlmostEqual(height_map.max(), dome_height)
-        self.assertEqual(height_map.min(), 0)
+        np.testing.assert_allclose(height_map.max(), dome_height)
+        assert height_map.min() == 0
 
         # Test the height at a random position.
         x_index = 70
@@ -250,29 +261,30 @@ class TestGenerateDomeHeightmap(unittest.TestCase):
         xy_height = height_map[x_index, y_index]
 
         sphere_radius = (dome_radius**2 + dome_height**2) / (2 * dome_height)
-        self.assertAlmostEqual(
+        np.testing.assert_allclose(
             (sphere_radius - dome_height) ** 2 + dome_radius**2, sphere_radius**2
         )
-        self.assertAlmostEqual(
+        np.testing.assert_allclose(
             (xy_height + (sphere_radius - dome_height)) ** 2
             + (xy_coordinate**2).sum(),
             sphere_radius**2,
         )
 
+
 class TestHeightmap:
     def test_calc_volume(self):
         grid_h = np.linspace(0, 1, 5)
         grid_w = np.linspace(-0.5, 0.5, 3)
-        height = np.array([[0.5, 1, 0.5, 1, 0],
-                           [1, 1, 0.5, 0, 1],
-                           [0, 1, 1, 2, 0]])
+        height = np.array([[0.5, 1, 0.5, 1, 0], [1, 1, 0.5, 0, 1], [0, 1, 1, 2, 0]])
         dut = rolling_env.Heightmap(grid_h=grid_h, grid_w=grid_w, height=height)
         volume = dut.calc_volume()
         cell_area = 0.25 * 0.5
-        cell_height = (height[:-1, :-1] + height[:-1, 1:] + height[1:, :-1] + height[1:, 1:])/ 4
+        cell_height = (
+            height[:-1, :-1] + height[:-1, 1:] + height[1:, :-1] + height[1:, 1:]
+        ) / 4
         volume_expected = np.sum(cell_height * cell_area)
         np.testing.assert_allclose(volume, volume_expected)
 
-        
+
 if __name__ == "__main__":
     unittest.main()

@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from enum import Enum
 import typing
-from typing import Callable, Tuple
+from typing import Callable, Tuple 
 
 import gym
 import numpy as np
@@ -114,6 +114,8 @@ def generate_flat_heightmap(dx, grid_size=(10, 10), height=0.01):
 
 @register_gym_env("Rolling-v0", max_episode_steps=10000)
 class RollingEnv(MPMBaseEnv):
+
+    SUPPORTED_OBS_MODES=("heightmap", "particle_position")
     agent: RollingPin
 
     def __init__(
@@ -147,11 +149,12 @@ class RollingEnv(MPMBaseEnv):
 
         super().__init__(*args, **kwargs)
         # Overwrite the inferred observation space with valid bounds.
-        self.observation_space = gym.spaces.Box(
-            low=0,
-            high=self._max_height,
-            shape=self.observation_space.shape,
-        )
+        if self.obs_mode == "heightmap":
+            self.observation_space = gym.spaces.Box(
+                low=0,
+                high=self._max_height,
+                shape=self.observation_space.shape,
+            )
 
     def reset(self, *args, regenerate_height_map=True, seed=None, **kwargs):
         """
@@ -164,7 +167,7 @@ class RollingEnv(MPMBaseEnv):
         super().reset(*args, seed=seed, **kwargs)
         # TODO(blake.wulfe): Figure out how to integrate with super().reset() properly
         # wrt the return value.
-        return self._get_obs()
+        return self.get_obs()
 
     def _setup_mpm(self):
         self.model_builder = MPMModelBuilder()
@@ -652,7 +655,7 @@ class RollingEnv(MPMBaseEnv):
             obs_height_map_dx=self._obs_height_map_dx,
             obs_height_map_grid_size=self._obs_height_map_grid_size,
         )
-        obs = self._get_obs()
+        obs = self.get_obs()
         # TODO(blake.wulfe): Figure out how to use different reward models like the following:
         # >>> from mani_skill2.dough_model_learning.dough_reward_models import FlatDoughRollingRewardModel
         # >>> import torch
@@ -723,14 +726,25 @@ class RollingEnv(MPMBaseEnv):
         )
         return np.mean(particle_q, axis=0)
 
-    def _get_obs(self):
+    def get_obs(self):
         # TODO(blake.wulfe): Generalize this to different obs modes.
         # See base env get_obs().
         # Return the height as the obs. The grid can be reconstrcuted from
         # the information contained in the info dict.
-        height = self.calc_heightmap(
-            self._obs_height_map_dx,
-            self._obs_height_map_grid_size,
-        ).height
-        height = height.clip(0, self._max_height)
-        return height
+        if self._obs_mode == "heightmap":
+            height = self.calc_heightmap(
+                self._obs_height_map_dx,
+                self._obs_height_map_grid_size,
+            ).height
+            height = height.clip(0, self._max_height)
+            return height
+        elif self._obs_mode == "particle_position":
+            particle_q = self.copy_array_to_numpy(
+                self.mpm_states[0].struct.particle_q, self.mpm_model.struct.n_particles
+            )
+            return particle_q
+        else:
+            obs = super().get_obs()
+
+        self._last_obs = obs
+        return obs
