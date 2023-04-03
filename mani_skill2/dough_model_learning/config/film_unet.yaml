@@ -18,6 +18,7 @@ module:
       cond_size: 10
   visualizer:
     _target_: mani_skill2.dynamics.visualizers.HeightMapDynamicsPLVisualizer
+    log_every_n_steps: 1000
 
 data:
   train_loader:
@@ -27,9 +28,9 @@ data:
     dataset:
       _target_: mani_skill2.data.sample_batch_dataset.SampleBatchDataset
       inputs:
-        # - /ssd1/datasets/robotics/tasks/model_based_dough_roll/datasets/2_6_2023/batch_08/output-2023-03-02_17-24-36_worker-0_0.json
         - /ssd1/datasets/robotics/tasks/model_based_dough_roll/datasets/03_23_2023/batch_01/output-2023-03-22_11-49-17_worker-0_0.json
         - /ssd1/datasets/robotics/tasks/model_based_dough_roll/datasets/03_23_2023/train_02/output-2023-03-22_17-51-28_worker-0_0.json
+        - /ssd1/datasets/robotics/tasks/model_based_dough_roll/datasets/03_23_2023/train_03/output-2023-03-29_22-22-16_worker-0_0.json
       debug_size: null
       debug_size_mode: "ordered"
   val_loader:
@@ -39,7 +40,6 @@ data:
     dataset:
       _target_: mani_skill2.data.sample_batch_dataset.SampleBatchDataset
       inputs:
-        # - /ssd1/datasets/robotics/tasks/model_based_dough_roll/datasets/2_6_2023/batch_09/
         - /ssd1/datasets/robotics/tasks/model_based_dough_roll/datasets/03_23_2023/val/output-2023-03-22_13-03-44_worker-0_0.json
       debug_size: null
       debug_size_mode: "ordered"
@@ -51,6 +51,14 @@ trainer:
   max_epochs: 1000
   gradient_clip_val: 10.0
   track_grad_norm: 2
+
+logging:
+  project: model_based_dough_rolling
+  resume: True
+  mode: online
+  name: ${now:%Y.%m.%d-%H.%M.%S}_model_based_dough
+  id: null
+  group: null
 
 eval:
   env:
