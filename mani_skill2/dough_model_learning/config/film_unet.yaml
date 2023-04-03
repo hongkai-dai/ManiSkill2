@@ -1,6 +1,10 @@
+defaults:
+  - user: blake 
+
+
 hydra:
   run:
-    dir: /ssd1/datasets/robotics/tasks/model_based_dough_roll/training/dynamics/${now:%Y-%m-%d}/${now:%H-%M-%S}
+    dir: ${user.run_dir}
 
 module:
   _target_: mani_skill2.dynamics.modules.DynamicsPLModule
@@ -12,6 +16,10 @@ module:
       _target_: mani_skill2.dynamics.normalizers.HeightMapNormalizer
     output_normalizer:
       _target_: mani_skill2.dynamics.normalizers.HeightMapNormalizer
+    action_normalizer:
+      _target_: mani_skill2.dynamics.normalizers.AffineNormalizer
+      lo: null
+      up: null
     network:
       _target_: mani_skill2.dynamics.networks.UnetFiLM
       n_channels: 1
@@ -27,10 +35,7 @@ data:
     shuffle: True
     dataset:
       _target_: mani_skill2.data.sample_batch_dataset.SampleBatchDataset
-      inputs:
-        - /ssd1/datasets/robotics/tasks/model_based_dough_roll/datasets/03_23_2023/batch_01/output-2023-03-22_11-49-17_worker-0_0.json
-        - /ssd1/datasets/robotics/tasks/model_based_dough_roll/datasets/03_23_2023/train_02/output-2023-03-22_17-51-28_worker-0_0.json
-        - /ssd1/datasets/robotics/tasks/model_based_dough_roll/datasets/03_23_2023/train_03/output-2023-03-29_22-22-16_worker-0_0.json
+      inputs: ${user.train_dataset_input}
       debug_size: null
       debug_size_mode: "ordered"
   val_loader:
@@ -39,8 +44,7 @@ data:
     shuffle: False
     dataset:
       _target_: mani_skill2.data.sample_batch_dataset.SampleBatchDataset
-      inputs:
-        - /ssd1/datasets/robotics/tasks/model_based_dough_roll/datasets/03_23_2023/val/output-2023-03-22_13-03-44_worker-0_0.json
+      inputs: ${user.val_dataset_input}
       debug_size: null
       debug_size_mode: "ordered"
 
@@ -81,7 +85,7 @@ eval:
     #   # TODO(blake.wulfe): Avoid hardcoding this.
     #   action_size: 10
   device: "cuda"
-  checkpoint: /ssd1/datasets/robotics/tasks/model_based_dough_roll/training/dynamics/2023-03-02/17-56-33/checkpoints/checkpoint-v1.ckpt
+  checkpoint: ${user.eval_checkpoint}
   # checkpoint: null
   num_episodes: 5
   max_num_steps: 5
