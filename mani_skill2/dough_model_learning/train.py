@@ -10,7 +10,10 @@ from pytorch_lightning.callbacks import (
     TQDMProgressBar,
 )
 from pytorch_lightning.loggers import WandbLogger
+import torch
 import wandb
+
+from mani_skill2.dynamics.normalizers import AffineNormalizer
 
 
 def get_trainer(cfg, logger):
@@ -64,6 +67,13 @@ def initialize_wandb_and_logger(cfg):
     return wandb_logger
 
 
+def get_action_normalizer(train_loader: torch.utils.data.Dataset):
+    train_dataset = train_loader.dataset
+    loader = torch.utils.data.DataLoader(train_dataset, batch_size=len(train_dataset))
+    for batch_data in loader:
+        return AffineNormalizer.from_data(batch_data["actions"])
+
+
 @hydra.main(config_path="config", config_name="film_unet")
 def main(cfg: DictConfig):
     logging.info(f"Starting training. Output dir: {os.getcwd()}")
@@ -71,6 +81,11 @@ def main(cfg: DictConfig):
     module = hydra.utils.instantiate(cfg.module)
     train_loader = hydra.utils.instantiate(cfg.data.train_loader)
     val_loader = hydra.utils.instantiate(cfg.data.val_loader)
+    action_normalizer = get_action_normalizer(train_loader)
+    dynamics_model = hydra.utils.instantiate(
+        cfg.module.dynamics_model, action_normalizer=action_normalizer
+    )
+    module = hydra.utils.instantiate(cfg.module, dynamics_model=dynamics_model)
     trainer = get_trainer(cfg, logger=wandb_logger)
     trainer.fit(module, train_dataloaders=train_loader, val_dataloaders=val_loader)
     logging.info("Training complete!")
