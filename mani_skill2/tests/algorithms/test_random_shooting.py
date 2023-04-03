@@ -39,11 +39,11 @@ class TestRandomShootingAgent:
 
         obs = np.ones((state_size,))
         action, info = dut.step(obs)
-        act_sequence = info["action_sequence"]
+        best_action_sequence = info["best_action_sequence"]
         state_sequence = info["state_sequence"]
         best_reward = info["best_reward"]
 
-        assert act_sequence.shape == (planning_steps, act_size)
+        assert best_action_sequence.shape == (planning_steps, act_size)
         assert state_sequence.shape == (planning_steps + 1, state_size)
 
         # Make sure that state_sequence, best_reward is consistent with act_sequence.
@@ -54,7 +54,7 @@ class TestRandomShootingAgent:
         )
         for i in range(planning_steps):
             next_state, _, _ = generative_env.dynamics_model.step(
-                state_sequence[i], act_sequence[i]
+                state_sequence[i], best_action_sequence[i]
             )
             obs_i = generative_env.dynamics_model.observation(state_sequence[i])
             obs_i_plus_1 = generative_env.dynamics_model.observation(
@@ -70,7 +70,7 @@ class TestRandomShootingAgent:
                 obs_i,
                 state_sequence[i + 1],
                 obs_i_plus_1,
-                act_sequence[i],
+                best_action_sequence[i],
             )
             reward_expected += reward * discount_factor**i
         np.testing.assert_allclose(best_reward.item(), reward_expected.item())

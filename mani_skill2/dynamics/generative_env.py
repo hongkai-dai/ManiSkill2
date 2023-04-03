@@ -122,11 +122,12 @@ class GenerativeEnv:
         dyn_infos = []
         for i in range(num_steps):
             state_sequence[:, i + 1, :], reward, _, step_info = self.step(
-                state_sequence[:, i, :], act_sequence[:, i, :]
+                state_sequence[:, i, :].clone(), act_sequence[:, i, :]
             )
             if self.reward_option == RewardOption.Always:
-                rewards += discount_factor**i * reward
+                rewards = rewards + discount_factor**i * reward
             elif self.reward_option == RewardOption.FinalTimeOnly:
-                rewards += reward if i == num_steps - 1 else 0
+                if i == num_steps - 1:
+                    rewards = rewards + reward
             dyn_infos.append(step_info)
         return state_sequence, rewards, dict(dyn_infos=dyn_infos)

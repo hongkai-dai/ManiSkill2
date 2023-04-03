@@ -37,6 +37,7 @@ imgui.ini
 # but can be excluded explicitly
 demos/*
 tmp/*
+figures/*
 
 # Data files
 *lightning*
