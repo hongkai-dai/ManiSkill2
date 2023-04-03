@@ -18,6 +18,7 @@ dependencies:
       - h5py
       - pytest
       - fire
+      - wandb
       # vision
       - transforms3d
       - opencv-python
@@ -30,3 +31,4 @@ dependencies:
       - ray[rllib]
       - pytorch-lightning
       - hydra-core
+      - torchvision

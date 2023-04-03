@@ -1,6 +1,8 @@
 import abc
+import collections
 from typing import List
 
+from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.loggers.logger import Logger
 import torch
 
@@ -38,12 +40,19 @@ class DynamicsTrainingPLVisualizer(abc.ABC):
 class HeightMapDynamicsPLVisualizer(DynamicsTrainingPLVisualizer):
     """Visualizes images of height map transitions."""
 
-    def __init__(self, max_num_to_visualize: int = 2):
+    def __init__(
+        self,
+        max_num_to_visualize: int = 4,
+        log_every_n_steps: int = 1000,
+    ):
         """
         Args:
             max_num_to_visualize: Max number of transitions to visualize.
+            log_every_n_steps: Number of steps between logging of info.
         """
         self.max_num_to_visualize = max_num_to_visualize
+        self.log_every_n_steps = log_every_n_steps
+        self.split_to_last = collections.defaultdict(int)
 
     def _format_height_map(
         self,
@@ -77,6 +86,12 @@ class HeightMapDynamicsPLVisualizer(DynamicsTrainingPLVisualizer):
         split: str,
         global_step: int,
     ) -> None:
+        last = self.split_to_last[split]
+        assert global_step >= last
+        if (global_step - last) < self.log_every_n_steps:
+            return
+        self.split_to_last[split] = global_step
+
         images = []
         for i in range(self.max_num_to_visualize):
             images += self._format_transition(
@@ -85,9 +100,18 @@ class HeightMapDynamicsPLVisualizer(DynamicsTrainingPLVisualizer):
                 pred_next_state[i],
             )
         images = torch.stack(images)[:, None]
-        logger.experiment.add_images(
-            f"{split}/images",
-            images,
-            global_step=global_step,
-            dataformats="NCHW",
-        )
+
+        key = f"{split}/images"
+        if isinstance(logger, WandbLogger):
+            logger.log_image(
+                key=key,
+                images=list(images.to(torch.float32)),
+                step=global_step,
+            )
+        else:
+            logger.experiment.add_images(
+                key,
+                images,
+                global_step=global_step,
+                dataformats="NCHW",
+            )
