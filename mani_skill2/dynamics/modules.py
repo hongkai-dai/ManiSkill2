@@ -36,6 +36,7 @@ class DynamicsPLModule(pl.LightningModule):
         l2_loss = torch.square(diff).sum(dim=sum_dims).mean(dim=0)
         l1_loss = torch.abs(diff).sum(dim=sum_dims).mean(dim=0)
         loss = l2_loss * 0.5 + l1_loss * 0.5
+        loss = l2_loss * 0.5
         return loss
 
     def _step(
