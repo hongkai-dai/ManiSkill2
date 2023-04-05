@@ -155,6 +155,7 @@ class RollingEnv(MPMBaseEnv):
                 high=self._max_height,
                 shape=self.observation_space.shape,
             )
+        # self.rendered_images = []
 
     def reset(self, *args, regenerate_height_map=True, seed=None, **kwargs):
         """
@@ -481,6 +482,7 @@ class RollingEnv(MPMBaseEnv):
             self.step_action_one_way_coupling(
                 sapien.Pose(p=p_Wpin_next, q=quat_Wpin_next)
             )
+            # self.rendered_images.append(self.render(mode="rgb_array"))
 
     def _compute_step_relative_pose(
         self,
