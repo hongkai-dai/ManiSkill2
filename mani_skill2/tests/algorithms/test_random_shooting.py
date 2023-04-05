@@ -57,13 +57,20 @@ class TestRandomShootingAgent:
                 state_sequence[i], act_sequence[i]
             )
             obs_i = generative_env.dynamics_model.observation(state_sequence[i])
+            obs_i_plus_1 = generative_env.dynamics_model.observation(
+                state_sequence[i + 1]
+            )
             np.testing.assert_allclose(
                 state_sequence[i + 1].cpu().detach().numpy(),
                 next_state.cpu().detach().numpy(),
                 atol=1e-6,
             )
             reward, _ = generative_env.reward_model.step(
-                state_sequence[i], obs_i, act_sequence[i]
+                state_sequence[i],
+                obs_i,
+                state_sequence[i + 1],
+                obs_i_plus_1,
+                act_sequence[i],
             )
-            reward_expected += reward * discount_factor ** i
+            reward_expected += reward * discount_factor**i
         np.testing.assert_allclose(best_reward.item(), reward_expected.item())

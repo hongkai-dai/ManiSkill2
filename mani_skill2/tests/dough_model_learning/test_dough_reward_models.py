@@ -33,8 +33,8 @@ class TestEllipseShape:
                 coord_ellipse = R.T @ (coord - position)
                 height_expected = 0
                 if (
-                    coord_ellipse[0] ** 2 / (dut.length/2)**2
-                    + coord_ellipse[1] ** 2 / (dut.width/2)**2
+                    coord_ellipse[0] ** 2 / (dut.length / 2) ** 2
+                    + coord_ellipse[1] ** 2 / (dut.width / 2) ** 2
                     <= 1
                 ):
                     height_expected = dut.height
@@ -42,7 +42,10 @@ class TestEllipseShape:
 
 
 class TestShapeRewardModel:
-    def test_step(self):
+    @pytest.mark.parametrize(
+        "shape_state", (mut.ShapeState.Current, mut.ShapeState.Next)
+    )
+    def test_step(self, shape_state):
         shape = mut.EllipseShape(
             total_volume=0.01,
             length=0.5,
@@ -50,7 +53,7 @@ class TestShapeRewardModel:
             grid_coord_h=torch.linspace(-0.5, 0.5, 20),
             grid_coord_w=torch.linspace(-1, 1, 30),
         )
-        dut = mut.ShapeRewardModel(shape)
+        dut = mut.ShapeRewardModel(shape, shape_state)
         batch_size = 2
         state = torch.ones(
             (batch_size, shape.grid_coord_w.numel(), shape.grid_coord_h.numel())
@@ -62,14 +65,20 @@ class TestShapeRewardModel:
         # Random action size. We don't compute the cost on the action.
         act_size = 10
         action = torch.zeros((batch_size, act_size))
-        reward, info = dut.step(state, obs, action)
+        next_state = 3 * state
+        next_obs = 3 * obs
+        reward, info = dut.step(state, obs, next_state, next_obs, action)
         assert reward.shape == (batch_size,)
         assert isinstance(info, dict)
         desired_height = shape.desired_heightmap(
             dut.position_samples[0], dut.angle_samples[0]
         )
         for i in range(batch_size):
+            if shape_state == mut.ShapeState.Current:
+                height = state[i]
+            elif shape_state == mut.ShapeState.Next:
+                height = next_state[i]
             error_expected = torch.nn.functional.mse_loss(
-                state[i], desired_height
-            ) + torch.nn.functional.l1_loss(state[i], desired_height)
+                height, desired_height
+            ) + torch.nn.functional.l1_loss(height, desired_height)
             np.testing.assert_allclose(reward[i].item(), -error_expected.item())

@@ -14,6 +14,8 @@ class GoalBasedRewardModel(abc.ABC, torch.nn.Module):
         self,
         state: torch.Tensor,
         obs: torch.Tensor,
+        next_state: torch.Tensor,
+        next_obs: torch.Tensor,
         action: torch.Tensor,
     ) -> Tuple[torch.Tensor, Dict]:
         """
@@ -22,6 +24,8 @@ class GoalBasedRewardModel(abc.ABC, torch.nn.Module):
         Args:
             state (torch.Tensor): The state at the start of the transition.
             obs (torch.Tensor): The observation at the start of the transition.
+            next_state (torch.Tensor): The state at the end of the transition.
+            next_obs (torch.Tensor): The observation at the end of the transition.
             action (torch.Tensor): The action during the transition.
 
         Returns:

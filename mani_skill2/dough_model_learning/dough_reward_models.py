@@ -1,4 +1,5 @@
 import abc
+from enum import Enum
 from typing import Tuple, Dict
 
 import numpy as np
@@ -10,7 +11,12 @@ from mani_skill2.dynamics.reward import GoalBasedRewardModel
 # TODO(blake.wulfe): Where to put this?
 class FlatDoughRollingRewardModel(GoalBasedRewardModel):
     def step(
-        self, state: torch.Tensor, obs: torch.Tensor, action: torch.Tensor
+        self,
+        state: torch.Tensor,
+        obs: torch.Tensor,
+        next_state: torch.Tensor,
+        next_obs: torch.Tensor,
+        action: torch.Tensor,
     ) -> Tuple[float, Dict]:
         dims = tuple(range(1, state.ndim))
         num_pos = (state > 0).sum(dim=dims)
@@ -91,25 +97,40 @@ class EllipseShape(DoughShape):
         R = torch.tensor([[cos_theta, -sin_theta], [sin_theta, cos_theta]])
         grid_coord_ellipse = (grid_coord - center_position.to(dtype)) @ R
         in_ellipse_mask = (
-            grid_coord_ellipse[:, 0] ** 2 / (self.length/2)**2
-            + grid_coord_ellipse[:, 1] ** 2 / (self.width/2)**2
+            grid_coord_ellipse[:, 0] ** 2 / (self.length / 2) ** 2
+            + grid_coord_ellipse[:, 1] ** 2 / (self.width / 2) ** 2
         ) <= 1
         height = self.height * in_ellipse_mask.view(grid_h.shape)
         return height
 
 
+class ShapeState(Enum):
+    """
+    Which state is used to compute the reward.
+    """
+
+    Current = 0
+    Next = 1
+
+
 class ShapeRewardModel(GoalBasedRewardModel):
-    def __init__(self, shape: DoughShape):
+    def __init__(self, shape: DoughShape, shape_state: ShapeState = ShapeState.Next):
         self.shape = shape
         # We will sample many orientation angle and position of the ellipsoid to shift the ellipsoid.
         self.angle_samples = torch.tensor([0.0])
         self.position_samples = torch.tensor([[0.0, 0.0]])
+        self.shape_state = shape_state
 
     def set_goal(self, goal: torch.Tensor):
         pass
 
     def step(
-        self, state: torch.Tensor, obs: torch.Tensor, action: torch.Tensor
+        self,
+        state: torch.Tensor,
+        obs: torch.Tensor,
+        next_state: torch.Tensor,
+        next_obs: torch.Tensor,
+        action: torch.Tensor,
     ) -> Tuple[torch.Tensor, Dict]:
         """
         Compute the reward for a batch of (state, obs, action) tuples.
@@ -118,6 +139,8 @@ class ShapeRewardModel(GoalBasedRewardModel):
         Args:
           state: Size is (batch_size, state_size) This is a batch of height maps.
           obs: Size is (batch_size, obs_size) We will not use obs
+          next_state: Size is (batch_size, state_size) A batch of next height maps.
+          next_obs: Size is (batch_size, obs_size)
           action: Size is (batch_size, act_size)
 
         Return:
@@ -136,6 +159,10 @@ class ShapeRewardModel(GoalBasedRewardModel):
             [batch_size] + [1] * desired_height.ndim
         ).to(state.device)
         # A combination of MSE and L1 loss.
-        diff = (state - desired_height_repeated).view((state.shape[0], -1))
+        if self.shape_state == ShapeState.Current:
+            height = state
+        elif self.shape_state == ShapeState.Next:
+            height = next_state
+        diff = (height - desired_height_repeated).view((height.shape[0], -1))
         error = (diff**2).mean(dim=-1) + torch.abs(diff).mean(dim=-1)
         return -error, dict()

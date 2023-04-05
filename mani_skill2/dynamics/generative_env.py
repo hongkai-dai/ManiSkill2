@@ -61,7 +61,8 @@ class GenerativeEnv:
         """
         next_state, terminated, info = self.dynamics_model.step(state, action)
         obs = self.observation(state)
-        reward, _ = self.reward_model.step(state, obs, action)
+        next_obs = self.observation(obs)
+        reward, _ = self.reward_model.step(state, obs, next_state, next_obs, action)
         return next_state, reward, terminated, info
 
     @abc.abstractmethod
