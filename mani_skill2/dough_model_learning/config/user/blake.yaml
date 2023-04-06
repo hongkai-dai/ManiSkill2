@@ -1,0 +1,8 @@
+run_dir: /ssd1/datasets/robotics/tasks/model_based_dough_roll/training/dynamics/${now:%Y-%m-%d}/${now:%H-%M-%S}
+train_dataset_input:
+  - /ssd1/datasets/robotics/tasks/model_based_dough_roll/datasets/03_23_2023/batch_01/output-2023-03-22_11-49-17_worker-0_0.json
+  - /ssd1/datasets/robotics/tasks/model_based_dough_roll/datasets/03_23_2023/train_02/output-2023-03-22_17-51-28_worker-0_0.json
+  - /ssd1/datasets/robotics/tasks/model_based_dough_roll/datasets/03_23_2023/train_03/output-2023-03-29_22-22-16_worker-0_0.json
+val_dataset_input:
+  - /ssd1/datasets/robotics/tasks/model_based_dough_roll/datasets/03_23_2023/val/output-2023-03-22_13-03-44_worker-0_0.json
+eval_checkpoint: /ssd1/datasets/robotics/tasks/model_based_dough_roll/training/dynamics/2023-03-02/17-56-33/checkpoints/checkpoint-v1.ckpt

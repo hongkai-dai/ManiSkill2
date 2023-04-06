@@ -84,15 +84,17 @@ class RandomShootingAgent(GymAgent):
                 total_rewards += self.discount_factor ** i * rewards
             best_reward, best_rollout_index = total_rewards.max(dim=0)
 
-            act_sequence = action_sequences[best_rollout_index]
-            state_sequence = state_rollouts[best_rollout_index]
+            best_act_sequence = action_sequences[best_rollout_index]
+            best_state_sequence = state_rollouts[best_rollout_index]
 
             info = dict(
-                action_sequence=act_sequence,
+                best_action_sequence=best_act_sequence,
                 best_reward=best_reward,
+                total_rewards=total_rewards,
+                action_sequences=action_sequences
             )
             if self.verbose_info:
-                info["state_sequence"] = state_sequence
+                info["state_sequence"] = best_state_sequence
 
-            action = act_sequence[0].detach().cpu().numpy()
+            action = best_act_sequence[0].detach().cpu().numpy()
             return action, info

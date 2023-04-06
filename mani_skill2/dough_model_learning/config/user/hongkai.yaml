@@ -1,0 +1,8 @@
+run_dir: /home/hongkaidai/dough_data/${now:%Y-%m-%d}/${now:%H-%M-%S}
+train_dataset_input:
+  - /home/hongkaidai/dough_data/03_30_2023/train/output-2023-03-22_11-49-17_worker-0_0.json
+  - /home/hongkaidai/dough_data/03_30_2023/train/output-2023-03-22_17-51-28_worker-0_0.json
+  - /home/hongkaidai/dough_data/03_30_2023/train/output-2023-03-29_22-22-16_worker-0_0.json
+val_dataset_input:
+  - /home/hongkaidai/dough_data/03_30_2023/val/output-2023-03-22_13-03-44_worker-0_0.json
+eval_checkpoint: /home/hongkaidai/dough_data/2023-04-04/12-01-01/checkpoints/checkpoint-v1.ckpt
